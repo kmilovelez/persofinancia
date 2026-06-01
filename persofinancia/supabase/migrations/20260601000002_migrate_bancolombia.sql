@@ -22,6 +22,12 @@ BEGIN
 
   RAISE NOTICE 'Migrando datos para usuario: %', v_user_id;
 
+  -- Pre-flight: validate flujo values
+  IF EXISTS (SELECT 1 FROM public.bancolombia_movimientos WHERE flujo NOT IN ('in','out')) THEN
+    RAISE EXCEPTION 'bancolombia_movimientos tiene valores de flujo inesperados: %',
+      (SELECT string_agg(DISTINCT flujo, ', ') FROM public.bancolombia_movimientos WHERE flujo NOT IN ('in','out'));
+  END IF;
+
   -- 1. Insertar banco Bancolombia
   INSERT INTO public.bancos (id, user_id, nombre, icono, gmail_query, parser_type, activo)
   VALUES (
@@ -54,7 +60,7 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
 
   -- 3. Resultado
-  RAISE NOTICE 'Migracion completa. Movimientos migrados: %',
+  RAISE NOTICE 'Migracion completa. Total movimientos del usuario en nueva tabla: %',
     (SELECT COUNT(*) FROM public.movimientos WHERE user_id = v_user_id);
 END $$;
 

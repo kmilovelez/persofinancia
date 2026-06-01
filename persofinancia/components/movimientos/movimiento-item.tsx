@@ -50,7 +50,7 @@ export function MovimientoItem({ movimiento, onClick }: MovimientoItemProps) {
             isIn ? 'text-green-500' : 'text-red-500'
           )}
         >
-          {isIn ? '+' : '-'}{fmt(movimiento.monto)}
+          {isIn ? '+' : '-'}{fmt(Math.abs(movimiento.monto))}
         </p>
         <p className="text-xs text-muted-foreground">{fmtDate(movimiento.fecha)}</p>
       </div>

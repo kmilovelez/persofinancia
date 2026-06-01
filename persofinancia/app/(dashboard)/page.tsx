@@ -1,4 +1,5 @@
 // persofinancia/app/(dashboard)/page.tsx
+import { redirect } from 'next/navigation'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/shared/kpi-card'
 import { fmt } from '@/lib/utils/currency'
@@ -8,12 +9,16 @@ async function getKpis(userId: string) {
   const supabase = await getSupabaseServerClient()
   const month = currentMonth()
 
+  const [year, monthNum] = month.split('-').map(Number)
+  const lastDay = new Date(year, monthNum, 0).getDate() // day 0 of next month = last day of this month
+  const lastDayStr = lastDay.toString().padStart(2, '0')
+
   const { data } = await supabase
     .from('movimientos')
     .select('flujo, monto')
     .eq('user_id', userId)
     .gte('fecha', `${month}-01`)
-    .lte('fecha', `${month}-31`)
+    .lte('fecha', `${month}-${lastDayStr}`)
 
   const movs = (data ?? []) as { flujo: string; monto: number }[]
   const ingresos = movs
@@ -34,7 +39,7 @@ export default async function InicioPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) redirect('/login')
 
   const { data: profileData } = await supabase
     .from('profiles')

@@ -48,7 +48,10 @@ export function MovimientoForm({ userId, categorias }: MovimientoFormProps) {
       user_id: userId,
       banco_id: null,
       fecha: form.fecha,
-      hora: new Date().toTimeString().slice(0, 5),
+      hora: (() => {
+        const now = new Date()
+        return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      })(),
       tipo: form.flujo === 'in' ? 'Ingreso' : 'Gasto',
       flujo: form.flujo,
       monto: montoNum,

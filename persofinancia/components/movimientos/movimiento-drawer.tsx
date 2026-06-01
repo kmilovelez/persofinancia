@@ -1,6 +1,6 @@
 // persofinancia/components/movimientos/movimiento-drawer.tsx
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import {
@@ -38,28 +38,43 @@ export function MovimientoDrawer({
   const [categoria, setCategoria] = useState(movimiento?.categoria ?? '')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  // Sync local state when movimiento changes
-  const displayCategoria = movimiento?.categoria ?? ''
+  // Reset local state whenever a different movimiento is selected
+  useEffect(() => {
+    setCategoria(movimiento?.categoria ?? '')
+    setSaveError(null)
+  }, [movimiento?.id])
 
   async function saveCategoria() {
     if (!movimiento) return
     setSaving(true)
+    setSaveError(null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from('movimientos') as any)
+    const { error } = await (supabase.from('movimientos') as any)
       .update({ categoria: categoria || null, categoria_manual: true })
       .eq('id', movimiento.id)
     setSaving(false)
+    if (error) {
+      setSaveError('Error al guardar. Intenta de nuevo.')
+      return
+    }
     router.refresh()
     onClose()
   }
 
   async function deleteMovimiento() {
-    if (!movimiento) return
-    if (movimiento.origen === 'email') return // emails are read-only
+    if (!movimiento || movimiento.origen === 'email') return
     setDeleting(true)
-    await supabase.from('movimientos').delete().eq('id', movimiento.id)
+    const { error } = await supabase
+      .from('movimientos')
+      .delete()
+      .eq('id', movimiento.id)
     setDeleting(false)
+    if (error) {
+      setSaveError('Error al eliminar. Intenta de nuevo.')
+      return
+    }
     router.refresh()
     onClose()
   }
@@ -75,11 +90,7 @@ export function MovimientoDrawer({
             {movimiento?.descripcion ?? ''}
           </SheetTitle>
           {movimiento && (
-            <p
-              className={
-                isIn ? 'text-green-500 font-bold text-lg' : 'text-red-500 font-bold text-lg'
-              }
-            >
+            <p className={isIn ? 'text-green-500 font-bold text-lg' : 'text-red-500 font-bold text-lg'}>
               {isIn ? '+' : '-'}{fmt(Math.abs(movimiento.monto))}
             </p>
           )}
@@ -88,11 +99,7 @@ export function MovimientoDrawer({
         <div className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <p className="text-sm font-medium">Categoria</p>
-            <Select
-              value={categoria}
-              onValueChange={(v) => setCategoria(v ?? '')}
-              defaultValue={displayCategoria}
-            >
+            <Select value={categoria} onValueChange={(v) => setCategoria(v ?? '')}>
               <SelectTrigger>
                 <SelectValue placeholder="Sin categoria" />
               </SelectTrigger>
@@ -107,11 +114,11 @@ export function MovimientoDrawer({
             </Select>
           </div>
 
-          <Button
-            onClick={saveCategoria}
-            disabled={saving}
-            className="w-full"
-          >
+          {saveError && (
+            <p className="text-sm text-destructive">{saveError}</p>
+          )}
+
+          <Button onClick={saveCategoria} disabled={saving} className="w-full">
             {saving ? 'Guardando...' : 'Guardar categoria'}
           </Button>
 

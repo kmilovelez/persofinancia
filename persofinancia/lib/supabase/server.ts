@@ -15,7 +15,11 @@ export async function getSupabaseServerClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {}
+          } catch (error) {
+            // Expected in Server Components (read-only cookies context)
+            // Cookie will be set on next navigation
+            console.debug('[Supabase] Cookie set skipped in RSC context:', error)
+          }
         },
       },
     }

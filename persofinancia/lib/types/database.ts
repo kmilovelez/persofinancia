@@ -84,9 +84,9 @@ export interface Alerta {
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Omit<Profile, 'created_at'>; Update: Partial<Profile> }
+      profiles: { Row: Profile; Insert: Omit<Profile, 'created_at'> & { gmail_token?: string | null }; Update: Partial<Profile> }
       bancos: { Row: Banco; Insert: Omit<Banco, 'id' | 'created_at'>; Update: Partial<Banco> }
-      movimientos: { Row: Movimiento; Insert: Omit<Movimiento, 'created_at'>; Update: Partial<Movimiento> }
+      movimientos: { Row: Movimiento; Insert: Omit<Movimiento, 'id' | 'created_at'>; Update: Partial<Movimiento> }
       categorias: { Row: Categoria; Insert: Omit<Categoria, 'id'>; Update: Partial<Categoria> }
       reglas_categoria: { Row: ReglaCategoria; Insert: Omit<ReglaCategoria, 'id' | 'aplicaciones' | 'created_at'>; Update: Partial<ReglaCategoria> }
       alertas: { Row: Alerta; Insert: Omit<Alerta, 'id' | 'created_at'>; Update: Partial<Alerta> }

@@ -7,6 +7,9 @@ import type { Movimiento, Categoria, Presupuesto } from '@/lib/types/database'
 import { ResumenTab } from '@/components/analitica/tabs/resumen-tab'
 import { GastosTab } from '@/components/analitica/tabs/gastos-tab'
 import { IngresosTab } from '@/components/analitica/tabs/ingresos-tab'
+import { DeudaTab } from '@/components/analitica/tabs/deuda-tab'
+import { FlujoTab } from '@/components/analitica/tabs/flujo-tab'
+import { ProyeccionTab } from '@/components/analitica/tabs/proyeccion-tab'
 
 interface Props {
   movimientos: Movimiento[]
@@ -64,9 +67,9 @@ export function AnaliticaClient({ movimientos, categorias, presupuestos, initial
         {tab === 'resumen' && <ResumenTab movimientos={movimientos} categorias={categorias} />}
         {tab === 'gastos' && <GastosTab movimientos={movimientos} categorias={categorias} presupuestos={presupuestos} />}
         {tab === 'ingresos' && <IngresosTab movimientos={movimientos} />}
-        {tab === 'deuda' && <div className="text-muted-foreground text-sm">Deuda — pending</div>}
-        {tab === 'flujo' && <div className="text-muted-foreground text-sm">Flujo — pending</div>}
-        {tab === 'proyeccion' && <div className="text-muted-foreground text-sm">Proyeccion — pending</div>}
+        {tab === 'deuda' && <DeudaTab movimientos={movimientos} />}
+        {tab === 'flujo' && <FlujoTab movimientos={movimientos} />}
+        {tab === 'proyeccion' && <ProyeccionTab movimientos={movimientos} />}
       </div>
     </div>
   )

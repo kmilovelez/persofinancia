@@ -118,7 +118,6 @@ CREATE INDEX IF NOT EXISTS idx_movimientos_user_fecha ON public.movimientos(user
 CREATE INDEX IF NOT EXISTS idx_movimientos_user_flujo ON public.movimientos(user_id, flujo);
 CREATE INDEX IF NOT EXISTS idx_movimientos_user_categoria ON public.movimientos(user_id, categoria);
 CREATE INDEX IF NOT EXISTS idx_movimientos_user_banco ON public.movimientos(user_id, banco_id);
-CREATE INDEX IF NOT EXISTS idx_alertas_user_leida ON public.alertas(user_id, leida);
 CREATE INDEX IF NOT EXISTS idx_reglas_user_activa_prioridad ON public.reglas_categoria(user_id, activa, prioridad);
 
 ALTER TABLE public.movimientos ENABLE ROW LEVEL SECURITY;
@@ -141,6 +140,8 @@ CREATE TABLE IF NOT EXISTS public.alertas (
 ALTER TABLE public.alertas ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "alertas_own" ON public.alertas
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_alertas_user_leida ON public.alertas(user_id, leida);
 
 -- ──────────────────────────────────────────
 -- STORAGE bucket para CSV

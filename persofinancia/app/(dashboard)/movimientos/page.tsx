@@ -14,17 +14,20 @@ interface PageProps {
 
 async function fetchMovimientos(userId: string, flujo?: string): Promise<Movimiento[]> {
   const supabase = await getSupabaseServerClient()
+  // Mayor límite para pendientes (para que el usuario los vea todos al revisar)
+  const limit = flujo === 'pendientes' ? 200 : 50
   let query = supabase
     .from('movimientos')
     .select('*')
     .eq('user_id', userId)
     .order('fecha', { ascending: false })
     .order('hora', { ascending: false })
-    .limit(50)
+    .limit(limit)
 
   if (flujo === 'ingresos') query = query.eq('flujo', 'in')
   else if (flujo === 'gastos') query = query.eq('flujo', 'out').neq('categoria', 'Deuda')
   else if (flujo === 'deuda') query = query.eq('categoria', 'Deuda')
+  else if (flujo === 'pendientes') query = query.is('categoria', null)
 
   const { data } = await query
   return (data ?? []) as Movimiento[]

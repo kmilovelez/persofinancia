@@ -70,9 +70,18 @@ export class BancolombiaParser implements BankParser {
       }
     }
 
-    // Ingreso / nómina
-    if (/Recibiste un pago|de Nomina/i.test(snippet)) {
-      const nombre = snippet.match(/(?:pago|Nomina) (?:de |)(.+?) por \$/i)?.[1]
+    // Nómina específicamente — "pago de Nomina de <empleador>"
+    if (/Recibiste un pago de Nomina de/i.test(snippet)) {
+      const nombre = snippet.match(/Nomina de (.+?) por \$/i)?.[1]
+      return {
+        id: messageId, fecha, hora, tipo: 'Ingreso Nomina', flujo: 'in', monto,
+        descripcion: (nombre ?? 'NOMINA').toUpperCase(), cuenta: null, raw: snippet,
+      }
+    }
+
+    // Ingreso genérico — "Recibiste un pago" sin PROVEEDOR ni Nomina
+    if (/Recibiste un pago/i.test(snippet)) {
+      const nombre = snippet.match(/pago (?:de |)(.+?) por \$/i)?.[1]
       return {
         id: messageId, fecha, hora, tipo: 'Ingreso', flujo: 'in', monto,
         descripcion: (nombre ?? 'INGRESO').toUpperCase(), cuenta: null, raw: snippet,

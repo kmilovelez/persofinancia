@@ -1,9 +1,58 @@
-export default function AnaliticaPage() {
+// persofinancia/app/(dashboard)/analitica/page.tsx
+import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
+import { getSupabaseServerClient } from '@/lib/supabase/server'
+import { parseRangeKey, rangeToDates } from '@/lib/analitica/ranges'
+import { RangeSelector } from '@/components/analitica/range-selector'
+import { AnaliticaClient } from './analitica-client'
+import type { Movimiento, Categoria, Presupuesto } from '@/lib/types/database'
+
+interface PageProps {
+  searchParams: Promise<{ tab?: string; rango?: string; desde?: string; hasta?: string }>
+}
+
+export default async function AnaliticaPage({ searchParams }: PageProps) {
+  const supabase = await getSupabaseServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const params = await searchParams
+  const rango = parseRangeKey(params.rango)
+  const custom = params.desde && params.hasta
+    ? { from: params.desde, to: params.hasta }
+    : undefined
+
+  const { start, end } = rangeToDates(rango, custom)
+
+  const [{ data: movs }, { data: cats }, { data: pres }] = await Promise.all([
+    supabase.from('movimientos').select('*').eq('user_id', user.id)
+      .gte('fecha', start).lte('fecha', end)
+      .order('fecha', { ascending: true }),
+    supabase.from('categorias').select('*').eq('user_id', user.id),
+    supabase.from('presupuestos').select('*').eq('user_id', user.id),
+  ])
+
+  const movimientos = (movs ?? []) as Movimiento[]
+  const categorias = (cats ?? []) as Categoria[]
+  const presupuestos = (pres ?? []) as Presupuesto[]
+
   return (
-    <div className="p-4 flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <p className="text-4xl mb-3">📊</p>
-      <h1 className="text-xl font-bold">Analitica</h1>
-      <p className="text-muted-foreground mt-2 text-sm">Disponible en Fase 3</p>
+    <div className="pb-4">
+      <div className="px-4 pt-4 pb-2">
+        <h1 className="text-xl font-bold">Analitica</h1>
+        <p className="text-xs text-muted-foreground">
+          {start} a {end} · {movimientos.length} movimientos
+        </p>
+      </div>
+      <Suspense fallback={null}>
+        <RangeSelector />
+      </Suspense>
+      <AnaliticaClient
+        movimientos={movimientos}
+        categorias={categorias}
+        presupuestos={presupuestos}
+        initialTab={params.tab ?? 'resumen'}
+      />
     </div>
   )
 }

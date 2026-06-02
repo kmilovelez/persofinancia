@@ -81,6 +81,16 @@ export interface Alerta {
   created_at: string
 }
 
+export interface Presupuesto {
+  id: string
+  user_id: string
+  categoria_id: string
+  monto: number
+  activo: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -90,6 +100,7 @@ export interface Database {
       categorias: { Row: Categoria; Insert: Omit<Categoria, 'id'>; Update: Partial<Categoria> }
       reglas_categoria: { Row: ReglaCategoria; Insert: Omit<ReglaCategoria, 'id' | 'aplicaciones' | 'created_at'>; Update: Partial<ReglaCategoria> }
       alertas: { Row: Alerta; Insert: Omit<Alerta, 'id' | 'created_at'>; Update: Partial<Alerta> }
+      presupuestos: { Row: Presupuesto; Insert: Omit<Presupuesto, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Presupuesto> }
     }
   }
 }

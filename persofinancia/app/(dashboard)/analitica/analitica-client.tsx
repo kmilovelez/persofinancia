@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { Movimiento, Categoria, Presupuesto } from '@/lib/types/database'
 import { ResumenTab } from '@/components/analitica/tabs/resumen-tab'
+import { GastosTab } from '@/components/analitica/tabs/gastos-tab'
 
 interface Props {
   movimientos: Movimiento[]
@@ -61,7 +62,7 @@ export function AnaliticaClient({ movimientos, categorias, presupuestos, initial
 
       <div className="px-4 pt-4">
         {tab === 'resumen' && <ResumenTab movimientos={movimientos} categorias={categorias} />}
-        {tab === 'gastos' && <div className="text-muted-foreground text-sm">Gastos — pending</div>}
+        {tab === 'gastos' && <GastosTab movimientos={movimientos} />}
         {tab === 'ingresos' && <div className="text-muted-foreground text-sm">Ingresos — pending</div>}
         {tab === 'deuda' && <div className="text-muted-foreground text-sm">Deuda — pending</div>}
         {tab === 'flujo' && <div className="text-muted-foreground text-sm">Flujo — pending</div>}

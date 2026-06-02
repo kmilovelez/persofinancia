@@ -61,6 +61,15 @@ export class BancolombiaParser implements BankParser {
       }
     }
 
+    // Ingreso PROVEEDOR (venta a empresa) — detectar antes que nómina porque ambos contienen "Recibiste un pago"
+    if (/Recibiste un pago PROVEEDOR de/i.test(snippet)) {
+      const nombre = snippet.match(/PROVEEDOR de (.+?) por \$/i)?.[1]
+      return {
+        id: messageId, fecha, hora, tipo: 'Ingreso Proveedor', flujo: 'in', monto,
+        descripcion: (nombre ?? 'INGRESO PROVEEDOR').toUpperCase(), cuenta: null, raw: snippet,
+      }
+    }
+
     // Ingreso / nómina
     if (/Recibiste un pago|de Nomina/i.test(snippet)) {
       const nombre = snippet.match(/(?:pago|Nomina) (?:de |)(.+?) por \$/i)?.[1]

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { Movimiento, Categoria, Presupuesto } from '@/lib/types/database'
+import { ResumenTab } from '@/components/analitica/tabs/resumen-tab'
 
 interface Props {
   movimientos: Movimiento[]
@@ -23,6 +24,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key']
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function AnaliticaClient({ movimientos, categorias, presupuestos, initialTab }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -58,11 +60,7 @@ export function AnaliticaClient({ movimientos, categorias, presupuestos, initial
       </div>
 
       <div className="px-4 pt-4">
-        {tab === 'resumen' && (
-          <div className="text-muted-foreground text-sm">
-            Resumen — {movimientos.length} movimientos · {categorias.length} categorías · {presupuestos.length} presupuestos
-          </div>
-        )}
+        {tab === 'resumen' && <ResumenTab movimientos={movimientos} categorias={categorias} />}
         {tab === 'gastos' && <div className="text-muted-foreground text-sm">Gastos — pending</div>}
         {tab === 'ingresos' && <div className="text-muted-foreground text-sm">Ingresos — pending</div>}
         {tab === 'deuda' && <div className="text-muted-foreground text-sm">Deuda — pending</div>}

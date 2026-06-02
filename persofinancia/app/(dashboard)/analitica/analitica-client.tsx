@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { Movimiento, Categoria, Presupuesto } from '@/lib/types/database'
 import { ResumenTab } from '@/components/analitica/tabs/resumen-tab'
 import { GastosTab } from '@/components/analitica/tabs/gastos-tab'
+import { IngresosTab } from '@/components/analitica/tabs/ingresos-tab'
 
 interface Props {
   movimientos: Movimiento[]
@@ -25,7 +26,6 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key']
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function AnaliticaClient({ movimientos, categorias, presupuestos, initialTab }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -62,8 +62,8 @@ export function AnaliticaClient({ movimientos, categorias, presupuestos, initial
 
       <div className="px-4 pt-4">
         {tab === 'resumen' && <ResumenTab movimientos={movimientos} categorias={categorias} />}
-        {tab === 'gastos' && <GastosTab movimientos={movimientos} />}
-        {tab === 'ingresos' && <div className="text-muted-foreground text-sm">Ingresos — pending</div>}
+        {tab === 'gastos' && <GastosTab movimientos={movimientos} categorias={categorias} presupuestos={presupuestos} />}
+        {tab === 'ingresos' && <IngresosTab movimientos={movimientos} />}
         {tab === 'deuda' && <div className="text-muted-foreground text-sm">Deuda — pending</div>}
         {tab === 'flujo' && <div className="text-muted-foreground text-sm">Flujo — pending</div>}
         {tab === 'proyeccion' && <div className="text-muted-foreground text-sm">Proyeccion — pending</div>}

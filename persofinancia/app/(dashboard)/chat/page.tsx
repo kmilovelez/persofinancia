@@ -10,8 +10,8 @@ export default async function ChatPage() {
   if (!user) redirect('/login')
 
   // Load last 30 messages of history
-  const { data } = await supabase
-    .from('chat_messages')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase.from('chat_messages') as any)
     .select('id, role, content, created_at')
     .eq('user_id', user.id)
     .in('role', ['user','assistant'])

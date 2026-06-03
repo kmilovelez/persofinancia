@@ -35,8 +35,8 @@ export default async function SyncHistoryPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: rows } = await supabase
-    .from('sync_history')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rows } = await (supabase.from('sync_history') as any)
     .select('id, triggered_by, range_from, range_to, saved, ai_categorized, rules_applied, errors, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })

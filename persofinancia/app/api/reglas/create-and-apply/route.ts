@@ -30,8 +30,8 @@ export async function POST(req: Request) {
   if (!cat) return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
 
   // Create rule with priority 25 (between manual prio 20 and AI suggestions)
-  const { data: rule, error: ruleErr } = await supabase
-    .from('reglas_categoria')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rule, error: ruleErr } = await (supabase.from('reglas_categoria') as any)
     .insert({
       user_id: user.id,
       categoria_id: cat.id,
@@ -50,8 +50,8 @@ export async function POST(req: Request) {
   }
 
   // Apply rule to uncategorized movs in this user's account
-  const { data: applied, error: applyErr } = await supabase
-    .from('movimientos')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: applied, error: applyErr } = await (supabase.from('movimientos') as any)
     .update({
       categoria: cat.nombre,
       regla_aplicada: rule.id,

@@ -23,8 +23,8 @@ export default async function AlertasPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data } = await supabase
-    .from('alertas')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase.from('alertas') as any)
     .select('id, tipo, titulo, mensaje, severidad, leida, descartada, movimiento_id, metadata, created_at')
     .eq('user_id', user.id)
     .eq('descartada', false)

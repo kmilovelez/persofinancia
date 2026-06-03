@@ -38,12 +38,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
-    .from('movimientos')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('movimientos') as any)
     .update({
       categoria: body.categoria,
       confianza_ia: body.confianza_ia ?? null,
-      categoria_manual: body.confianza_ia == null, // manual if no AI confidence
+      categoria_manual: body.confianza_ia == null,
     })
     .eq('user_id', user.id)
     .in('id', ids)

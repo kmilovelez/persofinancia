@@ -286,7 +286,8 @@ export async function POST(req: Request) {
     if (persist) {
       const lastUserMsg = [...userMessages].reverse().find(m => m.role === 'user')
       if (lastUserMsg) {
-        await supabase.from('chat_messages').insert([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from('chat_messages') as any).insert([
           { user_id: user.id, role: 'user', content: lastUserMsg.content },
           { user_id: user.id, role: 'assistant', content: finalContent },
         ])

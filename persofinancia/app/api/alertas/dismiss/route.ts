@@ -11,8 +11,8 @@ export async function POST(req: Request) {
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  const { error } = await supabase
-    .from('alertas')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from('alertas') as any)
     .update({ descartada: true })
     .eq('id', id)
     .eq('user_id', user.id)

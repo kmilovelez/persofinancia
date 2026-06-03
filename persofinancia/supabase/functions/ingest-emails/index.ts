@@ -60,62 +60,182 @@ interface RequestBody {
   user_id?: string
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any
+
 /**
- * Fallback parser using Claude when regex parser returns null.
- * Returns parsed transaction or null if Claude can't parse it either.
+ * SHA-256 hash of the snippet for cache lookup.
  */
-async function parseWithAI(snippet: string, messageId: string, bancoNombre: string): Promise<ParsedTransaction | null> {
-  const apiKey = Deno.env.get('CLAUDE_API_KEY')
+async function snippetHash(snippet: string): Promise<string> {
+  const data = new TextEncoder().encode(snippet)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+/**
+ * Look up cached parser result for an identical snippet.
+ * Returns previous parsed_output if found, null otherwise.
+ */
+async function lookupCache(
+  supabase: SupabaseClient,
+  snippet: string,
+  messageId: string,
+): Promise<ParsedTransaction | null> {
+  const hash = await snippetHash(snippet)
+  const { data, error } = await supabase
+    .from('parser_examples')
+    .select('parsed_output, id, hits')
+    .eq('snippet_hash', hash)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  // Increment hit counter
+  await supabase
+    .from('parser_examples')
+    .update({ hits: (data.hits ?? 0) + 1, last_used_at: new Date().toISOString() })
+    .eq('id', data.id)
+
+  const p = data.parsed_output
+  if (!p?.fecha || !p?.monto || !p?.flujo) return null
+
+  return {
+    id: messageId,
+    fecha: p.fecha,
+    hora: p.hora ?? '00:00',
+    tipo: p.tipo ?? 'Otros',
+    flujo: p.flujo === 'in' ? 'in' : 'out',
+    monto: Number(p.monto) || 0,
+    descripcion: (p.descripcion ?? 'SIN DESCRIPCION').toUpperCase(),
+    cuenta: p.cuenta ?? null,
+    raw: snippet,
+  }
+}
+
+/**
+ * Save successful parse to cache for future RAG.
+ */
+async function saveExample(
+  supabase: SupabaseClient,
+  bancoNombre: string,
+  snippet: string,
+  parsed: ParsedTransaction,
+  source: 'ai' | 'regex' = 'ai',
+): Promise<void> {
+  const hash = await snippetHash(snippet)
+  const parsed_output = {
+    fecha: parsed.fecha,
+    hora: parsed.hora,
+    tipo: parsed.tipo,
+    flujo: parsed.flujo,
+    monto: parsed.monto,
+    descripcion: parsed.descripcion,
+    cuenta: parsed.cuenta,
+  }
+
+  await supabase.from('parser_examples').upsert(
+    {
+      banco_nombre: bancoNombre,
+      snippet: snippet.slice(0, 1000),
+      snippet_hash: hash,
+      parsed_output,
+      source,
+    },
+    { onConflict: 'snippet_hash', ignoreDuplicates: true },
+  )
+}
+
+/**
+ * Get last N successful parses for the same bank — used as few-shot examples.
+ */
+async function getFewShotExamples(
+  supabase: SupabaseClient,
+  bancoNombre: string,
+  limit: number = 5,
+): Promise<Array<{ snippet: string; parsed_output: Record<string, unknown> }>> {
+  const { data } = await supabase
+    .from('parser_examples')
+    .select('snippet, parsed_output')
+    .eq('banco_nombre', bancoNombre)
+    .order('last_used_at', { ascending: false })
+    .limit(limit)
+  return data ?? []
+}
+
+/**
+ * Fallback parser using Gemini Free Tier when regex parser returns null.
+ * Uses few-shot examples from cache for RAG-style learning.
+ */
+async function parseWithGemini(
+  supabase: SupabaseClient,
+  snippet: string,
+  messageId: string,
+  bancoNombre: string,
+): Promise<ParsedTransaction | null> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
   if (!apiKey) {
-    console.log('[parseWithAI] CLAUDE_API_KEY not set — skipping AI parse')
+    console.log('[parseWithGemini] GEMINI_API_KEY not set — skipping AI parse')
     return null
   }
 
-  const prompt = `Extrae los datos de esta transacción bancaria de ${bancoNombre} en formato JSON estricto.
+  // Get few-shot examples from cache (RAG)
+  const examples = await getFewShotExamples(supabase, bancoNombre, 5)
+  const examplesText = examples.length > 0
+    ? `\nEjemplos previos de emails de ${bancoNombre} y sus extracciones JSON:\n\n${examples
+        .map(e => `Email:\n${e.snippet}\n\nJSON:\n${JSON.stringify(e.parsed_output)}`)
+        .join('\n\n---\n\n')}\n\n---\n\n`
+    : ''
 
-Snippet del email:
+  const prompt = `Eres un parser de emails bancarios colombianos. Tu trabajo es extraer datos estructurados de un email de ${bancoNombre} en formato JSON estricto.
+${examplesText}
+Nuevo email a procesar:
 ${snippet}
 
 Reglas:
-- "flujo": "in" para ingresos, "out" para egresos
+- "flujo": "in" para ingresos (recibido), "out" para egresos (enviado/pagado/comprado)
 - "tipo": clasifica como Compra, Transferencia, Transferencia QR, Transferencia Boton, Pago, Pago QR, Ingreso, Ingreso Nomina, Ingreso Proveedor, Transferencia recibida, u Otros
-- "descripcion": nombre del comercio / persona / destino (en mayúsculas)
+- "descripcion": nombre del comercio / persona / destino (en MAYÚSCULAS)
 - "fecha": formato YYYY-MM-DD
 - "hora": formato HH:MM
 - "monto": número en COP sin separadores ni símbolos (ej: 78000)
-- "cuenta": número de cuenta/tarjeta con asterisco si lo menciona, o null
+- "cuenta": número de cuenta/tarjeta con asterisco si lo menciona (ej: "*4000"), o null
 
-Responde SOLO con JSON, sin texto antes ni después:
+Responde SOLO con JSON válido, sin markdown, sin texto antes ni después:
 {"fecha":"YYYY-MM-DD","hora":"HH:MM","tipo":"...","flujo":"in|out","monto":0,"descripcion":"...","cuenta":null}
 
 Si no puedes determinar al menos fecha, monto y flujo, responde: {"error":"insufficient_data"}`
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }],
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 500,
+          responseMimeType: 'application/json',
+        },
       }),
     })
+
     if (!res.ok) {
-      console.log(`[parseWithAI] Claude API error ${res.status}`)
+      console.log(`[parseWithGemini] Gemini API error ${res.status}: ${await res.text()}`)
       return null
     }
     const data = await res.json()
-    const text = data.content?.[0]?.text ?? ''
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    if (!text) return null
+
     const jsonMatch = text.match(/\{[\s\S]+\}/)
     if (!jsonMatch) return null
     const parsed = JSON.parse(jsonMatch[0])
     if (parsed.error || !parsed.fecha || !parsed.monto || !parsed.flujo) return null
 
-    return {
+    const result: ParsedTransaction = {
       id: messageId,
       fecha: parsed.fecha,
       hora: parsed.hora ?? '00:00',
@@ -126,8 +246,13 @@ Si no puedes determinar al menos fecha, monto y flujo, responde: {"error":"insuf
       cuenta: parsed.cuenta ?? null,
       raw: snippet,
     }
+
+    // Save to cache for future RAG
+    await saveExample(supabase, bancoNombre, snippet, result, 'ai')
+
+    return result
   } catch (e) {
-    console.log(`[parseWithAI] Exception: ${e}`)
+    console.log(`[parseWithGemini] Exception: ${e}`)
     return null
   }
 }
@@ -260,6 +385,7 @@ serve(async (req) => {
     let saved = 0
     let skipped = 0
     let parsedByAi = 0
+    let parsedFromCache_count = 0
     let unparsable = 0
 
     for (const msgId of allMessageIds) {
@@ -280,12 +406,22 @@ serve(async (req) => {
 
       if (!snippet) continue
 
-      // 1) Try regex parser first (fast, free)
-      let parsed: ParsedTransaction | null = parser.parse(snippet, msgId)
+      // 1) Cache lookup — identical snippet seen before? (avoids re-calling IA)
+      let parsed: ParsedTransaction | null = await lookupCache(supabase, snippet, msgId)
+      if (parsed) parsedFromCache_count++
 
-      // 2) Fallback: try AI parser (slower, costs money but handles unknown formats)
+      // 2) Try regex parser (fast, free)
       if (!parsed) {
-        parsed = await parseWithAI(snippet, msgId, banco.nombre)
+        parsed = parser.parse(snippet, msgId)
+        if (parsed) {
+          // Save regex-parsed result to cache too (helps future RAG few-shot)
+          await saveExample(supabase, banco.nombre, snippet, parsed, 'regex')
+        }
+      }
+
+      // 3) Fallback: Gemini with few-shot from cache (RAG)
+      if (!parsed) {
+        parsed = await parseWithGemini(supabase, snippet, msgId, banco.nombre)
         if (parsed) parsedByAi++
       }
 
@@ -293,6 +429,7 @@ serve(async (req) => {
         unparsable++
         continue
       }
+
 
       // Insert (idempotent via PK = msgId). Categoria queda NULL — se aplica regla luego.
       const { error } = await supabase.from('movimientos').insert({
@@ -327,7 +464,7 @@ serve(async (req) => {
       .update({ ultimo_sync: new Date().toISOString() })
       .eq('id', banco.id)
 
-    summary[banco.nombre] = { saved, skipped, parsedByAi, unparsable }
+    summary[banco.nombre] = { saved, skipped, parsedByAi, parsedFromCache: parsedFromCache_count, unparsable }
   }
 
   // After all inserts: apply categorization rules to uncategorized movements

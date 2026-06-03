@@ -3,22 +3,24 @@ import { redirect } from 'next/navigation'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { KpiCard } from '@/components/shared/kpi-card'
 import { fmt } from '@/lib/utils/currency'
-import { currentMonth } from '@/lib/utils/dates'
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 async function getKpis(userId: string) {
   const supabase = await getSupabaseServerClient()
-  const month = currentMonth()
-
-  const [year, monthNum] = month.split('-').map(Number)
-  const lastDay = new Date(year, monthNum, 0).getDate() // day 0 of next month = last day of this month
-  const lastDayStr = lastDay.toString().padStart(2, '0')
+  // Rolling últimos 30 días (incluyendo hoy)
+  const today = new Date()
+  const start = new Date(today)
+  start.setDate(start.getDate() - 29)
 
   const { data } = await supabase
     .from('movimientos')
     .select('flujo, monto')
     .eq('user_id', userId)
-    .gte('fecha', `${month}-01`)
-    .lte('fecha', `${month}-${lastDayStr}`)
+    .gte('fecha', isoDate(start))
+    .lte('fecha', isoDate(today))
 
   const movs = (data ?? []) as { flujo: string; monto: number }[]
   const ingresos = movs
@@ -61,7 +63,7 @@ export default async function InicioPage() {
         <h1 className="text-xl font-bold">
           {greeting}{firstName ? `, ${firstName}` : ''} 👋
         </h1>
-        <p className="text-muted-foreground text-sm">Resumen del mes actual</p>
+        <p className="text-muted-foreground text-sm">Últimos 30 días</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

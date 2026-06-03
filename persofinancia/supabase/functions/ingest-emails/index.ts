@@ -58,6 +58,8 @@ interface RequestBody {
   from?: string  // YYYY-MM-DD inclusive
   to?: string    // YYYY-MM-DD inclusive
   user_id?: string
+  categorize_only?: boolean  // Skip Gmail sync, only run AI categorization on pending movs
+  ai_limit?: number          // Max movs to send to Gemini per call (default 50)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,6 +164,129 @@ async function getFewShotExamples(
     .order('last_used_at', { ascending: false })
     .limit(limit)
   return data ?? []
+}
+
+/**
+ * Classify a movement into one of the user's categories using Groq Llama 3.3 70B + few-shot RAG.
+ * Examples = user's previously-categorized movements with the same flujo.
+ * Returns category name if confianza >= 60, null otherwise.
+ */
+async function classifyWithGroq(
+  supabase: SupabaseClient,
+  userId: string,
+  movimiento: {
+    descripcion: string
+    tipo: string
+    monto: number
+    flujo: 'in' | 'out'
+    banco: string
+  },
+): Promise<{ categoria: string; confianza: number } | null> {
+  const apiKey = Deno.env.get('GROQ_API_KEY')
+  if (!apiKey) {
+    console.log('[classifyWithGroq] GROQ_API_KEY not set')
+    return null
+  }
+
+  // 1. Get user's categories
+  const { data: cats } = await supabase
+    .from('categorias')
+    .select('nombre, grupo, subgrupo')
+    .eq('user_id', userId)
+
+  if (!cats || cats.length === 0) return null
+
+  // 2. Get few-shot: 8 random previously-categorized movements of same flujo
+  const { data: examples } = await supabase
+    .from('movimientos')
+    .select('descripcion, tipo, monto, categoria')
+    .eq('user_id', userId)
+    .eq('flujo', movimiento.flujo)
+    .not('categoria', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const sampledExamples = (examples ?? [])
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 8)
+
+  const examplesText = sampledExamples.length > 0
+    ? `\nEjemplos previos del usuario:\n${sampledExamples
+        .map(e => `- "${e.descripcion}" (${e.tipo}, $${e.monto}) → ${e.categoria}`)
+        .join('\n')}\n`
+    : ''
+
+  const categoriasText = cats
+    .map(c => `- ${c.nombre} (grupo: ${c.grupo})`)
+    .join('\n')
+
+  const prompt = `Eres un clasificador de movimientos financieros personales colombianos.
+
+Categorías disponibles del usuario:
+${categoriasText}
+${examplesText}
+Movimiento a clasificar:
+- Descripción: "${movimiento.descripcion}"
+- Tipo: ${movimiento.tipo}
+- Monto: $${movimiento.monto} COP
+- Flujo: ${movimiento.flujo === 'in' ? 'entrada/ingreso' : 'salida/gasto'}
+- Banco: ${movimiento.banco}
+
+Devuelve JSON con la categoría más probable (nombre exacto de la lista) y tu confianza:
+{"categoria": "nombre exacto", "confianza": 0-100}
+
+Si no estás seguro o el movimiento es ambiguo, usa confianza baja (< 70).`
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'Eres un clasificador experto de movimientos financieros colombianos. Respondes SOLO con JSON válido, sin texto adicional ni markdown.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.1,
+        max_tokens: 200,
+        response_format: { type: 'json_object' },
+      }),
+    })
+    if (!res.ok) {
+      console.log(`[classifyWithGroq] HTTP ${res.status}: ${await res.text()}`)
+      return null
+    }
+    const data = await res.json()
+    const text = data.choices?.[0]?.message?.content ?? ''
+    const jsonMatch = text.match(/\{[\s\S]+\}/)
+    if (!jsonMatch) {
+      console.log(`[classifyWithGroq] No JSON in response: ${text}`)
+      return null
+    }
+    const parsed = JSON.parse(jsonMatch[0])
+    const confianza = Number(parsed.confianza) || 0
+    const raw = String(parsed.categoria ?? '').trim()
+
+    // Case-insensitive match against user's categories
+    const exists = cats.find(c => c.nombre.toLowerCase() === raw.toLowerCase())
+    if (!exists) {
+      console.log(`[classifyWithGroq] Categoría inválida: "${raw}" (conf=${confianza}) desc="${movimiento.descripcion}"`)
+      return null
+    }
+    if (confianza < 50) {
+      console.log(`[classifyWithGroq] Confianza baja: ${confianza} → "${exists.nombre}" desc="${movimiento.descripcion}"`)
+      return null
+    }
+
+    console.log(`[classifyWithGroq] OK: "${movimiento.descripcion}" → ${exists.nombre} (conf=${confianza})`)
+    return { categoria: exists.nombre, confianza }
+  } catch (e) {
+    console.log(`[classifyWithGroq] Exception: ${e}`)
+    return null
+  }
 }
 
 /**
@@ -301,12 +426,80 @@ serve(async (req) => {
   }
 
   const daysDiff = Math.floor((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  if (daysDiff > MAX_DAYS_PER_RUN) {
+  if (daysDiff > MAX_DAYS_PER_RUN && !body.categorize_only) {
     return new Response(
       JSON.stringify({
         error: `Range too large: ${daysDiff} days. Max ${MAX_DAYS_PER_RUN} days per run. Split into multiple calls.`,
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // ──────────────────────────────────────────
+  // categorize_only mode: skip Gmail/parsing/rules — only AI fallback on pending
+  // ──────────────────────────────────────────
+  if (body.categorize_only) {
+    if (!body.user_id) {
+      return new Response(
+        JSON.stringify({ error: 'categorize_only requires user_id' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const aiStats: Record<string, number> = {}
+    let aiCategorized = 0
+    let aiLowConfidence = 0
+    const aiLimit = body.ai_limit ?? 50
+
+    // Exclude movs already attempted (confianza_ia IS NOT NULL means we tried)
+    const { data: pending } = await supabase
+      .from('movimientos')
+      .select('id, descripcion, tipo, monto, flujo, banco_id, bancos(nombre)')
+      .eq('user_id', body.user_id)
+      .is('categoria', null)
+      .is('confianza_ia', null)
+      .gte('fecha', toIsoDate(fromDate))
+      .lte('fecha', toIsoDate(toDate))
+      .limit(aiLimit)
+
+    for (const mov of pending ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bancoNombre = (mov.bancos as any)?.nombre ?? 'Desconocido'
+      const result = await classifyWithGroq(supabase, body.user_id, {
+        descripcion: mov.descripcion ?? '',
+        tipo: mov.tipo ?? '',
+        monto: Number(mov.monto) || 0,
+        flujo: (mov.flujo as 'in' | 'out') ?? 'out',
+        banco: bancoNombre,
+      })
+      if (result) {
+        const { error: upErr } = await supabase
+          .from('movimientos')
+          .update({ categoria: result.categoria, confianza_ia: result.confianza })
+          .eq('id', mov.id)
+        if (!upErr) {
+          aiStats[result.categoria] = (aiStats[result.categoria] ?? 0) + 1
+          aiCategorized++
+        }
+      } else {
+        // Mark as attempted (confianza_ia = 0) so future runs skip this mov
+        await supabase
+          .from('movimientos')
+          .update({ confianza_ia: 0 })
+          .eq('id', mov.id)
+        aiLowConfidence++
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        mode: 'categorize_only',
+        scanned: pending?.length ?? 0,
+        aiCategorized,
+        aiLowConfidence,
+        aiStats,
+        range: { from: toIsoDate(fromDate), to: toIsoDate(toDate) },
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -514,10 +707,67 @@ serve(async (req) => {
     }
   }
 
+  // After rules: AI fallback categorization for movements still NULL
+  const aiStats: Record<string, number> = {}
+  let aiCategorized = 0
+  let aiLowConfidence = 0
+
+  for (const uid of targetUserIds) {
+    const fromIso = body.from ?? toIsoDate(fromDate)
+    const toIso = body.to ?? toIsoDate(toDate)
+
+    // Pull pending uncategorized movements (cap at 50 per sync to respect Groq quota)
+    const { data: pending } = await supabase
+      .from('movimientos')
+      .select('id, descripcion, tipo, monto, flujo, banco_id, bancos(nombre)')
+      .eq('user_id', uid)
+      .is('categoria', null)
+      .is('confianza_ia', null)
+      .gte('fecha', fromIso)
+      .lte('fecha', toIso)
+      .limit(50)
+
+    for (const mov of pending ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bancoNombre = (mov.bancos as any)?.nombre ?? 'Desconocido'
+      const result = await classifyWithGroq(supabase, uid, {
+        descripcion: mov.descripcion ?? '',
+        tipo: mov.tipo ?? '',
+        monto: Number(mov.monto) || 0,
+        flujo: (mov.flujo as 'in' | 'out') ?? 'out',
+        banco: bancoNombre,
+      })
+
+      if (result) {
+        const { error: upErr } = await supabase
+          .from('movimientos')
+          .update({
+            categoria: result.categoria,
+            confianza_ia: result.confianza,
+          })
+          .eq('id', mov.id)
+        if (!upErr) {
+          aiStats[result.categoria] = (aiStats[result.categoria] ?? 0) + 1
+          aiCategorized++
+        }
+      } else {
+        // Mark as attempted so future syncs skip this mov
+        await supabase
+          .from('movimientos')
+          .update({ confianza_ia: 0 })
+          .eq('id', mov.id)
+        aiLowConfidence++
+      }
+    }
+  }
+
   return new Response(
     JSON.stringify({
       summary,
       ruleStats,
+      aiStats,
+      aiCategorized,
+      aiLowConfidence,
       processed_at: new Date().toISOString(),
       range: { from: body.from ?? toIsoDate(fromDate), to: body.to ?? toIsoDate(toDate) },
       errors: errors.length > 0 ? errors : undefined,

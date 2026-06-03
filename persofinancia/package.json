@@ -10,7 +10,8 @@
     "migrate": "node scripts/migrate.mjs",
     "vercel-build": "node scripts/migrate.mjs && next build",
     "deploy:functions": "node scripts/deploy-functions.mjs",
-    "sync-history": "node scripts/sync-history.mjs"
+    "sync-history": "node scripts/sync-history.mjs",
+    "categorize-pending": "node scripts/categorize-pending.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

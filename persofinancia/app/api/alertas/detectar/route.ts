@@ -11,7 +11,10 @@
 // 3. Presupuesto excedido: gasto del mes > 100% del presupuesto mensual
 // 4. Movimientos duplicados sospechosos: mismo monto + descripción en ventana de 10 min
 import { NextResponse } from 'next/server'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'

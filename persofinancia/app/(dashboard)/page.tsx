@@ -34,8 +34,9 @@ async function getHealthScore(userId: string) {
   ])
 
   const movs = (movsRes.data ?? []) as Array<{ fecha: string; flujo: string; monto: number; categoria: string | null }>
+  const cats = (catsRes.data ?? []) as Array<{ nombre: string; grupo: string }>
   const catGrupo: Record<string, string> = {}
-  for (const c of catsRes.data ?? []) {
+  for (const c of cats) {
     catGrupo[c.nombre] = c.grupo
   }
 

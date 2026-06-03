@@ -13,7 +13,9 @@
 // POST /api/chat { messages: [{role, content}], persist?: boolean }
 import { NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClient = any
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -157,13 +159,15 @@ async function executeTool(
           .lte('fecha', monthEnd),
       ])
 
+      const movsList = (movsRes.data ?? []) as Array<{ categoria: string | null; monto: number }>
+      const presupuestosList = (presupuestosRes.data ?? []) as Array<{ categoria: string; monto_mensual: number }>
       const gastos: Record<string, number> = {}
-      for (const m of movsRes.data ?? []) {
+      for (const m of movsList) {
         if (!m.categoria) continue
         gastos[m.categoria] = (gastos[m.categoria] ?? 0) + Number(m.monto)
       }
 
-      return (presupuestosRes.data ?? []).map(p => ({
+      return presupuestosList.map(p => ({
         categoria: p.categoria,
         presupuesto: Number(p.monto_mensual),
         gastado: gastos[p.categoria] ?? 0,

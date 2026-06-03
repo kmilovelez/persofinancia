@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     .select('user_id')
     .eq('activo', true)
 
-  const userIds = [...new Set((bancosUsers ?? []).map(b => b.user_id))]
+  const userIds = Array.from(new Set((bancosUsers ?? []).map(b => b.user_id)))
   if (userIds.length === 0) {
     return NextResponse.json({ message: 'No active users to sync', ts: new Date().toISOString() })
   }
@@ -92,6 +92,21 @@ export async function GET(req: Request) {
         saved: 0,
         errors: [msg],
       })
+    }
+
+    // After sync: run alert detection
+    try {
+      const alertsUrl = new URL('/api/alertas/detectar', req.url).toString()
+      await fetch(alertsUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${expected ?? ''}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId }),
+      })
+    } catch {
+      // alerts are best-effort
     }
   }
 

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "migrate": "node scripts/migrate.mjs",
-    "vercel-build": "node scripts/migrate.mjs && next build"
+    "vercel-build": "node scripts/migrate.mjs && next build",
+    "deploy:functions": "node scripts/deploy-functions.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

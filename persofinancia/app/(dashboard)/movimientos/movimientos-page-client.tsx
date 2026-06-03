@@ -34,10 +34,6 @@ export function MovimientosPageClient({ movimientos, categorias, bulkEligible }:
     setSelectedIds(new Set(movimientos.map(m => m.id)))
   }
 
-  function clearSelection() {
-    setSelectedIds(new Set())
-  }
-
   function exitBulk() {
     setBulkMode(false)
     setSelectedIds(new Set())

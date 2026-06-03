@@ -10,6 +10,7 @@ import { IngresosTab } from '@/components/analitica/tabs/ingresos-tab'
 import { DeudaTab } from '@/components/analitica/tabs/deuda-tab'
 import { FlujoTab } from '@/components/analitica/tabs/flujo-tab'
 import { ProyeccionTab } from '@/components/analitica/tabs/proyeccion-tab'
+import { YoyTab } from '@/components/analitica/tabs/yoy-tab'
 
 interface Props {
   movimientos: Movimiento[]
@@ -25,6 +26,7 @@ const TABS = [
   { key: 'deuda',      label: 'Deuda' },
   { key: 'flujo',      label: 'Flujo' },
   { key: 'proyeccion', label: 'Proyeccion' },
+  { key: 'yoy',        label: 'Año vs Año' },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']
@@ -70,6 +72,7 @@ export function AnaliticaClient({ movimientos, categorias, presupuestos, initial
         {tab === 'deuda' && <DeudaTab movimientos={movimientos} />}
         {tab === 'flujo' && <FlujoTab movimientos={movimientos} />}
         {tab === 'proyeccion' && <ProyeccionTab movimientos={movimientos} />}
+        {tab === 'yoy' && <YoyTab movimientos={movimientos} />}
       </div>
     </div>
   )

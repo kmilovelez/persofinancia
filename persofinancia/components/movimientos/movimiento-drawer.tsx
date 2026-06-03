@@ -55,6 +55,7 @@ export function MovimientoDrawer({
     setCategoria(movimiento?.categoria ?? '')
     setSaveError(null)
     setRuleSuggestion(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movimiento?.id])
 
   async function saveCategoria() {

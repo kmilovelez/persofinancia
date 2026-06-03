@@ -60,6 +60,78 @@ interface RequestBody {
   user_id?: string
 }
 
+/**
+ * Fallback parser using Claude when regex parser returns null.
+ * Returns parsed transaction or null if Claude can't parse it either.
+ */
+async function parseWithAI(snippet: string, messageId: string, bancoNombre: string): Promise<ParsedTransaction | null> {
+  const apiKey = Deno.env.get('CLAUDE_API_KEY')
+  if (!apiKey) {
+    console.log('[parseWithAI] CLAUDE_API_KEY not set — skipping AI parse')
+    return null
+  }
+
+  const prompt = `Extrae los datos de esta transacción bancaria de ${bancoNombre} en formato JSON estricto.
+
+Snippet del email:
+${snippet}
+
+Reglas:
+- "flujo": "in" para ingresos, "out" para egresos
+- "tipo": clasifica como Compra, Transferencia, Transferencia QR, Transferencia Boton, Pago, Pago QR, Ingreso, Ingreso Nomina, Ingreso Proveedor, Transferencia recibida, u Otros
+- "descripcion": nombre del comercio / persona / destino (en mayúsculas)
+- "fecha": formato YYYY-MM-DD
+- "hora": formato HH:MM
+- "monto": número en COP sin separadores ni símbolos (ej: 78000)
+- "cuenta": número de cuenta/tarjeta con asterisco si lo menciona, o null
+
+Responde SOLO con JSON, sin texto antes ni después:
+{"fecha":"YYYY-MM-DD","hora":"HH:MM","tipo":"...","flujo":"in|out","monto":0,"descripcion":"...","cuenta":null}
+
+Si no puedes determinar al menos fecha, monto y flujo, responde: {"error":"insufficient_data"}`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (!res.ok) {
+      console.log(`[parseWithAI] Claude API error ${res.status}`)
+      return null
+    }
+    const data = await res.json()
+    const text = data.content?.[0]?.text ?? ''
+    const jsonMatch = text.match(/\{[\s\S]+\}/)
+    if (!jsonMatch) return null
+    const parsed = JSON.parse(jsonMatch[0])
+    if (parsed.error || !parsed.fecha || !parsed.monto || !parsed.flujo) return null
+
+    return {
+      id: messageId,
+      fecha: parsed.fecha,
+      hora: parsed.hora ?? '00:00',
+      tipo: parsed.tipo ?? 'Otros',
+      flujo: parsed.flujo === 'in' ? 'in' : 'out',
+      monto: Number(parsed.monto) || 0,
+      descripcion: (parsed.descripcion ?? 'SIN DESCRIPCION').toUpperCase(),
+      cuenta: parsed.cuenta ?? null,
+      raw: snippet,
+    }
+  } catch (e) {
+    console.log(`[parseWithAI] Exception: ${e}`)
+    return null
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -187,6 +259,8 @@ serve(async (req) => {
 
     let saved = 0
     let skipped = 0
+    let parsedByAi = 0
+    let unparsable = 0
 
     for (const msgId of allMessageIds) {
       // Fetch message snippet
@@ -206,9 +280,17 @@ serve(async (req) => {
 
       if (!snippet) continue
 
-      const parsed: ParsedTransaction | null = parser.parse(snippet, msgId)
+      // 1) Try regex parser first (fast, free)
+      let parsed: ParsedTransaction | null = parser.parse(snippet, msgId)
+
+      // 2) Fallback: try AI parser (slower, costs money but handles unknown formats)
       if (!parsed) {
-        skipped++
+        parsed = await parseWithAI(snippet, msgId, banco.nombre)
+        if (parsed) parsedByAi++
+      }
+
+      if (!parsed) {
+        unparsable++
         continue
       }
 
@@ -245,7 +327,7 @@ serve(async (req) => {
       .update({ ultimo_sync: new Date().toISOString() })
       .eq('id', banco.id)
 
-    summary[banco.nombre] = { saved, skipped }
+    summary[banco.nombre] = { saved, skipped, parsedByAi, unparsable }
   }
 
   // After all inserts: apply categorization rules to uncategorized movements

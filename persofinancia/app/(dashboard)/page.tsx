@@ -56,8 +56,9 @@ async function getHealthScore(userId: string) {
     .gte('fecha', isoDate(sixMonthsAgo))
     .lt('fecha', isoDate(today))
 
+  const histList = (histMovs ?? []) as Array<{ fecha: string; monto: number; categoria: string | null; flujo: string }>
   const monthly: Record<string, number> = {}
-  for (const m of histMovs ?? []) {
+  for (const m of histList) {
     const cat = m.categoria
     if (!cat || cat === 'Deuda' || FIXED_GROUPS.includes(catGrupo[cat])) continue
     const k = m.fecha.slice(0, 7)

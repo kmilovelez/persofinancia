@@ -13,7 +13,11 @@ const FILTERS = [
 
 type FilterKey = (typeof FILTERS)[number]['key']
 
-export function MovimientoFilters() {
+interface Props {
+  pendientesCount?: number
+}
+
+export function MovimientoFilters({ pendientesCount }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -34,12 +38,13 @@ export function MovimientoFilters() {
     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
       {FILTERS.map(({ key, label }) => {
         const isPendientes = key === 'pendientes'
+        const showBadge = isPendientes && pendientesCount !== undefined && pendientesCount > 0
         return (
           <button
             key={key}
             onClick={() => setFilter(key)}
             className={cn(
-              'shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
+              'shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5',
               active === key
                 ? 'bg-primary text-primary-foreground'
                 : isPendientes
@@ -47,7 +52,17 @@ export function MovimientoFilters() {
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
             )}
           >
-            {label}
+            <span>{label}</span>
+            {showBadge && (
+              <span className={cn(
+                'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none min-w-[18px] text-center',
+                active === key
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-yellow-500 text-white'
+              )}>
+                {pendientesCount! > 99 ? '99+' : pendientesCount}
+              </span>
+            )}
           </button>
         )
       })}

@@ -39,11 +39,17 @@ export default async function MovimientosPage({ searchParams }: PageProps) {
   if (!user) redirect('/login')
 
   const params = await searchParams
-  const [movimientos, categoriasResult] = await Promise.all([
+  const [movimientos, categoriasResult, pendientesResult] = await Promise.all([
     fetchMovimientos(user.id, params.flujo),
     supabase.from('categorias').select('*').eq('user_id', user.id).order('nombre'),
+    supabase
+      .from('movimientos')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .is('categoria', null),
   ])
   const categorias = (categoriasResult.data ?? []) as Categoria[]
+  const pendientesCount = pendientesResult.count ?? 0
 
   return (
     <div className="p-4 space-y-4">
@@ -59,10 +65,14 @@ export default async function MovimientosPage({ searchParams }: PageProps) {
       </div>
 
       <Suspense fallback={null}>
-        <MovimientoFilters />
+        <MovimientoFilters pendientesCount={pendientesCount} />
       </Suspense>
 
-      <MovimientosPageClient movimientos={movimientos} categorias={categorias} />
+      <MovimientosPageClient
+        movimientos={movimientos}
+        categorias={categorias}
+        bulkEligible={params.flujo === 'pendientes'}
+      />
     </div>
   )
 }

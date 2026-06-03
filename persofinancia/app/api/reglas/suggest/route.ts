@@ -77,10 +77,12 @@ export async function POST(req: Request) {
     .select('valor')
     .eq('user_id', user.id)
 
-  const existingPatterns = new Set((existingRules ?? []).map(r => r.valor.toUpperCase()))
+  const existingRulesList = (existingRules ?? []) as Array<{ valor: string }>
+  const existingPatterns = new Set(existingRulesList.map(r => r.valor.toUpperCase()))
 
   // Find best candidate
-  const cands = candidates(mov.descripcion ?? '')
+  const movRow = mov as { id: string; descripcion: string | null }
+  const cands = candidates(movRow.descripcion ?? '')
   for (const cand of cands) {
     if (existingPatterns.has(cand)) continue  // skip if rule already exists
 
@@ -94,12 +96,13 @@ export async function POST(req: Request) {
 
     const totalMatches = count ?? 0
     if (totalMatches >= MIN_MATCHES) {
+      const matchList = (matchingMovs ?? []) as Array<{ id: string; descripcion: string; monto: number }>
       return NextResponse.json({
         suggestion: {
           patron: cand,
           categoria,
           matches: totalMatches,
-          preview: (matchingMovs ?? []).map(m => ({ descripcion: m.descripcion, monto: m.monto })),
+          preview: matchList.map(m => ({ descripcion: m.descripcion, monto: m.monto })),
         },
       })
     }

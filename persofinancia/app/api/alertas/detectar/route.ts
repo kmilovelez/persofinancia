@@ -71,16 +71,18 @@ async function detectarParaUser(
       .gte('fecha', isoNinetyAgo)
       .lt('fecha', isoYesterday)
 
+    const histList = (historico ?? []) as Array<{ categoria: string; monto: number }>
     const avgPorCategoria: Record<string, { total: number; count: number }> = {}
-    for (const m of historico ?? []) {
-      const k = m.categoria as string
+    for (const m of histList) {
+      const k = m.categoria
       if (!avgPorCategoria[k]) avgPorCategoria[k] = { total: 0, count: 0 }
       avgPorCategoria[k].total += Number(m.monto)
       avgPorCategoria[k].count++
     }
 
-    for (const r of recientes) {
-      const cat = r.categoria as string
+    const recientesList = recientes as Array<{ id: string; fecha: string; descripcion: string; monto: number; categoria: string; flujo: string }>
+    for (const r of recientesList) {
+      const cat = r.categoria
       const agg = avgPorCategoria[cat]
       if (!agg || agg.count < 3) continue // skip if not enough history
       const avg = agg.total / agg.count
@@ -113,13 +115,15 @@ async function detectarParaUser(
       .gte('fecha', monthStart)
       .lte('fecha', monthEnd)
 
+    const gastosMesList = (gastosMes ?? []) as Array<{ categoria: string | null; monto: number }>
     const gastosPorCat: Record<string, number> = {}
-    for (const g of gastosMes ?? []) {
+    for (const g of gastosMesList) {
       if (!g.categoria) continue
       gastosPorCat[g.categoria] = (gastosPorCat[g.categoria] ?? 0) + Number(g.monto)
     }
 
-    for (const p of presupuestos) {
+    const presupuestosList = presupuestos as Array<{ categoria: string; monto_mensual: number }>
+    for (const p of presupuestosList) {
       const gastado = gastosPorCat[p.categoria] ?? 0
       const presupuesto = Number(p.monto_mensual)
       const pct = (gastado / presupuesto) * 100
@@ -157,10 +161,11 @@ async function detectarParaUser(
     .order('fecha', { ascending: true })
     .order('hora', { ascending: true })
 
-  if (posibles && posibles.length > 1) {
-    for (let i = 1; i < posibles.length; i++) {
-      const prev = posibles[i - 1]
-      const curr = posibles[i]
+  const posiblesList = (posibles ?? []) as Array<{ id: string; fecha: string; hora: string; descripcion: string; monto: number }>
+  if (posiblesList.length > 1) {
+    for (let i = 1; i < posiblesList.length; i++) {
+      const prev = posiblesList[i - 1]
+      const curr = posiblesList[i]
       if (
         prev.descripcion === curr.descripcion &&
         Number(prev.monto) === Number(curr.monto) &&

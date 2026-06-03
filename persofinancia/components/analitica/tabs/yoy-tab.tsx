@@ -102,7 +102,7 @@ export function YoyTab({ movimientos }: Props) {
             <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
             <Tooltip
-              formatter={(v: number) => fmt(v)}
+              formatter={(v) => fmt(Number(v))}
               contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />

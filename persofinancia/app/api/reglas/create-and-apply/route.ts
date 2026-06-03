@@ -21,13 +21,14 @@ export async function POST(req: Request) {
   }
 
   // Validate category belongs to user
-  const { data: cat } = await supabase
+  const { data: catRaw } = await supabase
     .from('categorias')
     .select('id, nombre')
     .eq('user_id', user.id)
     .eq('nombre', categoria)
     .maybeSingle()
-  if (!cat) return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
+  if (!catRaw) return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
+  const cat = catRaw as { id: string; nombre: string }
 
   // Create rule with priority 25 (between manual prio 20 and AI suggestions)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

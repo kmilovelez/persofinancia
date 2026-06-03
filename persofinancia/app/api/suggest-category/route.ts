@@ -40,6 +40,8 @@ export async function POST(req: Request) {
   if (!mov) {
     return NextResponse.json({ error: 'Movement not found' }, { status: 404 })
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const movRow = mov as any
 
   // Fetch user's categories
   const { data: cats } = await supabase
@@ -49,18 +51,19 @@ export async function POST(req: Request) {
   if (!cats || cats.length === 0) {
     return NextResponse.json({ suggestion: null, reason: 'No categories defined' })
   }
+  const catsList = cats as Array<{ nombre: string; grupo: string }>
 
   // Few-shot: 8 random previously-categorized movs with same flujo
   const { data: examples } = await supabase
     .from('movimientos')
     .select('descripcion, tipo, monto, categoria')
     .eq('user_id', user.id)
-    .eq('flujo', mov.flujo)
+    .eq('flujo', movRow.flujo)
     .not('categoria', 'is', null)
     .order('created_at', { ascending: false })
     .limit(20)
 
-  const sampled = (examples ?? [])
+  const sampled = ((examples ?? []) as Array<{ descripcion: string; tipo: string; monto: number; categoria: string }>)
     .sort(() => Math.random() - 0.5)
     .slice(0, 8)
 
@@ -70,22 +73,21 @@ export async function POST(req: Request) {
         .join('\n')}\n`
     : ''
 
-  const categoriasText = cats
+  const categoriasText = catsList
     .map(c => `- ${c.nombre} (grupo: ${c.grupo})`)
     .join('\n')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bancoNombre = (mov.bancos as any)?.nombre ?? 'Desconocido'
+  const bancoNombre = movRow.bancos?.nombre ?? 'Desconocido'
   const prompt = `Eres un clasificador de movimientos financieros personales colombianos.
 
 Categorías disponibles del usuario:
 ${categoriasText}
 ${examplesText}
 Movimiento a clasificar:
-- Descripción: "${mov.descripcion}"
-- Tipo: ${mov.tipo}
-- Monto: $${mov.monto} COP
-- Flujo: ${mov.flujo === 'in' ? 'entrada/ingreso' : 'salida/gasto'}
+- Descripción: "${movRow.descripcion}"
+- Tipo: ${movRow.tipo}
+- Monto: $${movRow.monto} COP
+- Flujo: ${movRow.flujo === 'in' ? 'entrada/ingreso' : 'salida/gasto'}
 - Banco: ${bancoNombre}
 
 Devuelve JSON con la categoría más probable (nombre exacto de la lista) y tu confianza:
@@ -121,7 +123,7 @@ Devuelve JSON con la categoría más probable (nombre exacto de la lista) y tu c
     const parsed = JSON.parse(jsonMatch[0])
     const confianza = Number(parsed.confianza) || 0
     const raw = String(parsed.categoria ?? '').trim()
-    const exists = cats.find(c => c.nombre.toLowerCase() === raw.toLowerCase())
+    const exists = catsList.find(c => c.nombre.toLowerCase() === raw.toLowerCase())
     if (!exists) {
       return NextResponse.json({ suggestion: null, reason: `Invalid category: ${raw}` })
     }

@@ -113,8 +113,8 @@ async function executeTool(
       if (args.flujo) q = q.eq('flujo', args.flujo)
       if (args.texto_descripcion) q = q.ilike('descripcion', `%${args.texto_descripcion}%`)
       const { data } = await q.order('fecha', { ascending: false }).limit(500)
-      const rows = data ?? []
-      const total = rows.reduce((s, r) => s + Number(r.monto), 0)
+      const rows = (data ?? []) as Array<{ fecha: string; descripcion: string; monto: number; categoria: string | null; flujo: string; tipo: string }>
+      const total = rows.reduce((s: number, r) => s + Number(r.monto), 0)
       return {
         count: rows.length,
         total_cop: total,
@@ -131,9 +131,10 @@ async function executeTool(
         .not('categoria', 'is', null)
       if (args.flujo) q = q.eq('flujo', args.flujo)
       const { data } = await q
+      const list = (data ?? []) as Array<{ categoria: string; monto: number; flujo: string }>
       const agg: Record<string, { total: number; count: number; flujo: string }> = {}
-      for (const r of data ?? []) {
-        const k = r.categoria as string
+      for (const r of list) {
+        const k = r.categoria
         if (!agg[k]) agg[k] = { total: 0, count: 0, flujo: r.flujo }
         agg[k].total += Number(r.monto)
         agg[k].count++

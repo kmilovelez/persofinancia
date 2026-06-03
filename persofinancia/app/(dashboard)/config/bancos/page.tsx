@@ -70,6 +70,14 @@ export default async function BancosPage() {
       )}
 
       {gmailConectado && (
+        <Link href="/config/bancos/sync" className="block">
+          <Button variant="outline" size="sm" className="w-full">
+            Sincronizar histórico (rango de fechas)
+          </Button>
+        </Link>
+      )}
+
+      {gmailConectado && (
         <form action={syncNow}>
           <Button type="submit" variant="outline" size="sm" className="w-full">
             Sincronizar ahora

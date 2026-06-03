@@ -12,6 +12,11 @@ const CONFIG_LINKS = [
     desc: 'Gestiona tus fuentes de datos',
   },
   {
+    href: '/config/sync-history',
+    label: 'Historial de sincronizaciones',
+    desc: 'Últimas lecturas de Gmail (cron + manual)',
+  },
+  {
     href: '/config/categorias',
     label: 'Categorias',
     desc: 'Crea y edita tus categorias',

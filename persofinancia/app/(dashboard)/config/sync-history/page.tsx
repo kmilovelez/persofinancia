@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ChevronLeft, Check, AlertCircle, Clock } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
+import { SyncNowButton } from './sync-now-button'
 
 interface SyncRow {
   id: number
@@ -53,6 +54,8 @@ export default async function SyncHistoryPage() {
         </Link>
         <h1 className="text-xl font-bold">Historial de sync</h1>
       </div>
+
+      <SyncNowButton />
 
       <div className="bg-card border border-border rounded-xl p-4 space-y-1">
         <p className="text-xs text-muted-foreground">Próximo sync automático</p>

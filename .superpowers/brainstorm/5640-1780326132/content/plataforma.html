@@ -1,0 +1,40 @@
+<h2>¿Cómo quieres acceder a PersoFinancIA?</h2>
+<p class="subtitle">Esto define la arquitectura base del proyecto</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Web App (Next.js + Supabase Auth)</h3>
+      <p>Accedes desde cualquier browser. Login con tu email. Desplegada en Vercel o similar. API keys nunca expuestas al cliente. <strong>Recomendado</strong> — escalable, seguro, moderno.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Acceso desde cualquier dispositivo</li><li>Auth real (no más key en HTML)</li><li>Fácil de iterar y desplegar</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Requiere hosting (Vercel gratis)</li><li>Build step inicial</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>App Local mejorada (HTML + Supabase RLS)</h3>
+      <p>Misma arquitectura actual pero con Row Level Security en Supabase y autenticación via magic link. Sin servidor propio. Corre en tu máquina.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Sin hosting ni build</li><li>Cambios rápidos</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Solo en tu PC</li><li>Token JWT en localStorage (riesgo XSS)</li><li>Menos escalable</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Electron / Desktop App</h3>
+      <p>App de escritorio instalable en Windows. UI web dentro de una ventana nativa. Datos locales + sync a Supabase.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Funciona offline</li><li>Experiencia nativa</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Más complejo de mantener</li><li>Solo en tu PC</li><li>No accesible desde móvil</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

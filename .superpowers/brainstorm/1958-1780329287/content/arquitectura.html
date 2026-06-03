@@ -1,0 +1,91 @@
+<h2>¿Qué arquitectura usamos?</h2>
+<p class="subtitle">3 enfoques para construir PersoFinancIA — con sus trade-offs</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Next.js 14 + Supabase + Vercel AI SDK <span style="background:#1f9d57;color:#fff;font-size:0.7em;padding:2px 8px;border-radius:10px;margin-left:8px">Recomendado</span></h3>
+      <p>Stack moderno y cohesivo. Next.js maneja UI y API en un solo repo. Supabase para auth + DB con RLS por usuario. Vercel AI SDK para el chat con Claude. PWA para experiencia móvil nativa.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:0.85em">
+        <div style="background:#f0fdf4;border-radius:6px;padding:8px">
+          <strong style="color:#1f9d57">Stack</strong><br>
+          Next.js 14 (App Router)<br>
+          Supabase Auth + DB + Storage<br>
+          Vercel AI SDK + Claude API<br>
+          shadcn/ui + Tailwind<br>
+          Recharts (gráficas)<br>
+          Vercel (deploy gratuito)
+        </div>
+        <div style="background:#f0fdf4;border-radius:6px;padding:8px">
+          <strong style="color:#1f9d57">Ventajas</strong><br>
+          Un solo repo<br>
+          Deploy en minutos<br>
+          PWA = app en tu celular<br>
+          API keys en servidor<br>
+          Ecosistema enorme
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="cons"><h4>Contras</h4><ul><li>Claude API tiene costo por uso</li><li>Vercel limita Edge Functions gratis</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Next.js + Supabase + IA como Edge Function separada</h3>
+      <p>La IA corre como Supabase Edge Function (Deno). Más flexible para lógica compleja de análisis financiero. Más piezas, pero mejor separación de responsabilidades.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:0.85em">
+        <div style="background:#fff7ed;border-radius:6px;padding:8px">
+          <strong style="color:#ea580c">Stack</strong><br>
+          Next.js 14 (frontend)<br>
+          Supabase Edge Functions (IA)<br>
+          Supabase Auth + DB<br>
+          Claude API (desde Edge Fn)<br>
+          shadcn/ui + Tailwind
+        </div>
+        <div style="background:#fff7ed;border-radius:6px;padding:8px">
+          <strong style="color:#ea580c">Ventajas</strong><br>
+          IA aislada del frontend<br>
+          Lógica financiera compleja<br>
+          Sin cold starts en Vercel<br>
+          Edge Fn corren cerca del usuario
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="cons"><h4>Contras</h4><ul><li>Más piezas que mantener</li><li>Debug más complejo</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>T3 Stack (Next.js + tRPC + Prisma + NextAuth)</h3>
+      <p>Stack tipado de extremo a extremo. tRPC elimina la necesidad de REST API manual. Prisma como ORM en vez de Supabase SDK directo. Popular en proyectos TypeScript serios.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:0.85em">
+        <div style="background:#f5f3ff;border-radius:6px;padding:8px">
+          <strong style="color:#7c3aed">Stack</strong><br>
+          Next.js + tRPC + Prisma<br>
+          NextAuth (auth)<br>
+          PostgreSQL (Supabase DB)<br>
+          Claude API<br>
+          shadcn/ui + Tailwind
+        </div>
+        <div style="background:#f5f3ff;border-radius:6px;padding:8px">
+          <strong style="color:#7c3aed">Ventajas</strong><br>
+          Type-safety total<br>
+          Autocompletado perfecto<br>
+          Patrón bien establecido
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="cons"><h4>Contras</h4><ul><li>Más boilerplate inicial</li><li>Pierdes features de Supabase (realtime, storage)</li><li>Más complejo para un solo dev</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

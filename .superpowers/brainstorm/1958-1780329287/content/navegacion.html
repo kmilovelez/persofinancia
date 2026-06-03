@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PersoFinancIA — Navegación</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; padding: 24px; }
+  h1 { font-size: 1.3em; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .sub { color: #94a3b8; font-size: 0.88em; margin-bottom: 28px; }
+
+  .options-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+  .opt { border-radius: 14px; border: 2px solid #334155; background: #1e293b; padding: 16px; cursor: pointer; transition: border-color 0.2s, transform 0.15s; }
+  .opt:hover { border-color: #60a5fa; transform: translateY(-2px); }
+  .opt.selected { border-color: #3b82f6; background: #1e3a5f; }
+
+  .opt-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .opt-letter { width: 28px; height: 28px; border-radius: 8px; background: #3b82f6; color: white; font-weight: 700; font-size: 0.85em; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .opt-title { font-weight: 700; font-size: 0.95em; color: #f1f5f9; }
+  .opt-subtitle { font-size: 0.75em; color: #64748b; margin-top: 2px; }
+
+  /* Phone mockup */
+  .phone { width: 100%; max-width: 180px; margin: 0 auto 14px; background: #0f172a; border-radius: 24px; border: 2px solid #334155; overflow: hidden; padding: 8px 6px; }
+  .phone-screen { background: #1e293b; border-radius: 16px; overflow: hidden; }
+  .phone-status { background: #0f172a; padding: 6px 10px 3px; display: flex; justify-content: space-between; font-size: 0.55em; color: #475569; }
+
+  /* Option A - Bottom nav */
+  .screen-a { background: #1e293b; }
+  .screen-a .content { padding: 10px; }
+  .screen-a .top-bar { background: #0f172a; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; }
+  .screen-a .top-bar span { font-size: 0.6em; color: #94a3b8; }
+  .screen-a .top-bar strong { font-size: 0.65em; color: #f1f5f9; }
+  .kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 6px 0; }
+  .kpi-mini { background: #0f172a; border-radius: 6px; padding: 5px 6px; }
+  .kpi-mini .label { font-size: 0.45em; color: #64748b; }
+  .kpi-mini .val { font-size: 0.6em; font-weight: 700; color: #4ade80; }
+  .chart-placeholder { background: #0f172a; border-radius: 6px; height: 40px; margin: 4px 0; display: flex; align-items: center; justify-content: center; }
+  .chart-placeholder span { font-size: 0.45em; color: #475569; }
+  .bottom-nav { background: #0f172a; padding: 6px 4px 8px; display: flex; justify-content: space-around; border-top: 1px solid #1e293b; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .nav-icon { font-size: 0.9em; }
+  .nav-label { font-size: 0.4em; color: #64748b; }
+  .nav-item.active .nav-label { color: #3b82f6; }
+  .nav-item.active .nav-icon { filter: none; }
+
+  /* Option B - Sidebar drawer */
+  .screen-b .drawer { position: relative; }
+  .drawer-bg { background: #0f172a; padding: 8px; }
+  .drawer-header { display: flex; align-items: center; gap: 6px; padding: 4px 0 8px; border-bottom: 1px solid #1e293b; margin-bottom: 6px; }
+  .drawer-header .avatar { width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; font-size: 0.45em; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; }
+  .drawer-header span { font-size: 0.5em; color: #94a3b8; }
+  .drawer-item { padding: 5px 6px; border-radius: 6px; font-size: 0.5em; color: #94a3b8; display: flex; align-items: center; gap: 5px; margin-bottom: 1px; }
+  .drawer-item.active { background: #1e3a5f; color: #60a5fa; }
+  .drawer-section { font-size: 0.4em; color: #475569; padding: 4px 6px 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Option C - Top tabs */
+  .top-tabs { display: flex; overflow-x: auto; background: #0f172a; padding: 0 6px; gap: 2px; border-bottom: 1px solid #1e293b; }
+  .tab { padding: 6px 8px; font-size: 0.45em; color: #64748b; white-space: nowrap; border-bottom: 2px solid transparent; }
+  .tab.active { color: #60a5fa; border-bottom-color: #3b82f6; }
+
+  .pros { margin-top: 8px; }
+  .pro-item { font-size: 0.72em; color: #94a3b8; line-height: 1.7; padding-left: 10px; position: relative; }
+  .pro-item::before { content: '✓'; position: absolute; left: 0; color: #4ade80; font-size: 0.9em; }
+  .con-item { font-size: 0.72em; color: #94a3b8; line-height: 1.7; padding-left: 10px; position: relative; }
+  .con-item::before { content: '✗'; position: absolute; left: 0; color: #f87171; font-size: 0.9em; }
+
+  .rec-badge { background: #15803d; color: #bbf7d0; font-size: 0.65em; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-left: 6px; }
+</style>
+<script>
+  function selectOpt(el) {
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    if(window.recordChoice) window.recordChoice(el.dataset.choice, el.querySelector('.opt-title').textContent);
+  }
+</script>
+</head>
+<body>
+
+<h1>¿Cómo navegas la app en el celular?</h1>
+<p class="sub">Elige la estructura de navegación principal</p>
+
+<div class="options-grid">
+
+  <!-- OPTION A: Bottom Nav -->
+  <div class="opt" data-choice="a" onclick="selectOpt(this)">
+    <div class="opt-header">
+      <div class="opt-letter">A</div>
+      <div>
+        <div class="opt-title">Bottom Navigation <span class="rec-badge">Recomendado</span></div>
+        <div class="opt-subtitle">5 tabs fijos en la parte baja</div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="phone-screen screen-a">
+        <div class="phone-status"><span>9:41</span><span>●●●</span></div>
+        <div class="top-bar">
+          <strong>Dashboard</strong>
+          <span>🔔 2</span>
+        </div>
+        <div class="content">
+          <div class="kpi-row">
+            <div class="kpi-mini"><div class="label">Ingresos</div><div class="val">$15.8M</div></div>
+            <div class="kpi-mini"><div class="label">Gastos</div><div class="val" style="color:#f87171">$16.3M</div></div>
+          </div>
+          <div class="chart-placeholder"><span>Gráfica flujo</span></div>
+          <div class="chart-placeholder" style="height:28px"><span>Alertas</span></div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label" style="color:#3b82f6">Inicio</div>
+          </div>
+          <div class="nav-item">
+            <div class="nav-icon">📋</div>
+            <div class="nav-label">Movimientos</div>
+          </div>
+          <div class="nav-item">
+            <div class="nav-icon" style="font-size:1.2em">✦</div>
+            <div class="nav-label">Chat IA</div>
+          </div>
+          <div class="nav-item">
+            <div class="nav-icon">📊</div>
+            <div class="nav-label">Analítica</div>
+          </div>
+          <div class="nav-item">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Config</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros">
+      <div class="pro-item">Pulgar siempre alcanza los tabs</div>
+      <div class="pro-item">Patrón estándar iOS/Android</div>
+      <div class="pro-item">Chat IA visible siempre</div>
+      <div class="con-item">Máx 5 secciones en la barra</div>
+    </div>
+  </div>
+
+  <!-- OPTION B: Sidebar Drawer -->
+  <div class="opt" data-choice="b" onclick="selectOpt(this)">
+    <div class="opt-header">
+      <div class="opt-letter" style="background:#8b5cf6">B</div>
+      <div>
+        <div class="opt-title">Sidebar Drawer</div>
+        <div class="opt-subtitle">Menú lateral deslizable</div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-status"><span>9:41</span><span>●●●</span></div>
+        <div class="drawer-bg">
+          <div class="drawer-header">
+            <div class="avatar">JC</div>
+            <span>Juan Camilo Vélez</span>
+          </div>
+          <div class="drawer-section">Principal</div>
+          <div class="drawer-item active">🏠 Dashboard</div>
+          <div class="drawer-item">📋 Movimientos</div>
+          <div class="drawer-item">📊 Analítica</div>
+          <div class="drawer-item">✦ Chat IA</div>
+          <div class="drawer-section">Configuración</div>
+          <div class="drawer-item">🏦 Bancos</div>
+          <div class="drawer-item">🏷️ Categorías</div>
+          <div class="drawer-item">📥 Importar</div>
+          <div class="drawer-item">⚙️ Ajustes</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros">
+      <div class="pro-item">Más secciones sin límite</div>
+      <div class="pro-item">Similar a la app actual</div>
+      <div class="con-item">Tap extra para abrir menú</div>
+      <div class="con-item">Chat IA enterrado</div>
+    </div>
+  </div>
+
+  <!-- OPTION C: Top Tabs -->
+  <div class="opt" data-choice="c" onclick="selectOpt(this)">
+    <div class="opt-header">
+      <div class="opt-letter" style="background:#0891b2">C</div>
+      <div>
+        <div class="opt-title">Top Tabs + Bottom Nav</div>
+        <div class="opt-subtitle">Nav híbrida: tabs arriba + 3 acciones abajo</div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-status"><span>9:41</span><span>●●●</span></div>
+        <div style="background:#0f172a; padding: 6px 8px; display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:0.6em;color:#f1f5f9">PersoFinancIA</strong>
+          <span style="font-size:0.6em;color:#64748b">🔔</span>
+        </div>
+        <div class="top-tabs">
+          <div class="tab active">Resumen</div>
+          <div class="tab">Ingresos</div>
+          <div class="tab">Gastos</div>
+          <div class="tab">Deuda</div>
+          <div class="tab">Flujo</div>
+        </div>
+        <div style="padding:8px; background:#1e293b;">
+          <div class="chart-placeholder"><span>Contenido del tab</span></div>
+          <div class="chart-placeholder" style="height:25px; margin-top:4px"><span>Gráfica</span></div>
+        </div>
+        <div class="bottom-nav" style="justify-content:space-around">
+          <div class="nav-item active">
+            <div class="nav-icon">📋</div>
+            <div class="nav-label" style="color:#3b82f6">Movimientos</div>
+          </div>
+          <div class="nav-item">
+            <div class="nav-icon" style="font-size:1.3em">✦</div>
+            <div class="nav-label">Chat IA</div>
+          </div>
+          <div class="nav-item">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Config</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros">
+      <div class="pro-item">Análisis detallado con tabs</div>
+      <div class="pro-item">Acciones principales abajo</div>
+      <div class="con-item">Scroll horizontal en tabs</div>
+      <div class="con-item">Más complejo de mantener</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

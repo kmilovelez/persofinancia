@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PersoFinancIA — Arquitectura Fase 1 + 2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; padding: 24px; }
+  h1 { font-size: 1.4em; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .sub { color: #94a3b8; font-size: 0.9em; margin-bottom: 24px; }
+
+  .arch { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+  .layer { border-radius: 12px; padding: 16px; }
+  .layer-title { font-size: 0.7em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+  .layer-box { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 0.82em; line-height: 1.5; }
+  .layer-box strong { display: block; font-size: 0.85em; margin-bottom: 2px; }
+  .tag { display: inline-block; font-size: 0.68em; padding: 1px 6px; border-radius: 10px; margin-left: 4px; font-weight: 600; vertical-align: middle; }
+
+  .frontend { background: linear-gradient(135deg, #1e3a5f22, #1e3a5f44); border: 1px solid #3b82f644; }
+  .frontend .layer-title { color: #60a5fa; }
+  .frontend .tag { background: #1d4ed8; color: #bfdbfe; }
+
+  .supabase { background: linear-gradient(135deg, #14532d22, #14532d44); border: 1px solid #22c55e44; }
+  .supabase .layer-title { color: #4ade80; }
+  .supabase .tag { background: #15803d; color: #bbf7d0; }
+
+  .edge { background: linear-gradient(135deg, #4c1d9522, #4c1d9544); border: 1px solid #a855f744; }
+  .edge .layer-title { color: #c084fc; }
+  .edge .tag { background: #7e22ce; color: #e9d5ff; }
+
+  .arrow { display: flex; align-items: center; justify-content: center; color: #475569; font-size: 1.4em; }
+
+  .db-section { margin-bottom: 24px; }
+  .db-title { font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #4ade80; margin-bottom: 12px; }
+  .tables { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .table-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; font-size: 0.78em; }
+  .table-name { font-weight: 700; color: #f8fafc; margin-bottom: 6px; font-family: monospace; font-size: 0.95em; }
+  .col { color: #94a3b8; line-height: 1.8; }
+  .col .pk { color: #fbbf24; font-weight: 600; }
+  .col .fk { color: #60a5fa; }
+  .col .new { color: #4ade80; }
+
+  .flow { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+  .flow-title { font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #c084fc; margin-bottom: 12px; }
+  .flow-steps { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+  .step { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 12px; font-size: 0.78em; flex: 1; min-width: 120px; }
+  .step-num { font-size: 0.7em; font-weight: 700; color: #c084fc; margin-bottom: 4px; }
+  .step-name { font-weight: 600; color: #f1f5f9; margin-bottom: 3px; }
+  .step-desc { color: #94a3b8; line-height: 1.4; }
+  .step-arrow { color: #475569; display: flex; align-items: center; font-size: 1.2em; }
+</style>
+</head>
+<body>
+
+<h1>PersoFinancIA — Arquitectura Fase 1 + 2</h1>
+<p class="sub">Fundación · Auth · Datos · Ingesta de emails · Gestión de bancos</p>
+
+<!-- Capas -->
+<div class="arch">
+  <div class="layer frontend">
+    <div class="layer-title">Frontend <span class="tag">Next.js 14</span></div>
+    <div class="layer-box"><strong>App Router + TypeScript</strong>shadcn/ui · Tailwind · PWA manifest<br>Recharts para gráficas</div>
+    <div class="layer-box"><strong>Pantallas Fase 1</strong>Login / Register<br>Dashboard (esqueleto)<br>Movimientos (CRUD)<br>Configuración</div>
+    <div class="layer-box"><strong>Pantallas Fase 2</strong>Gestión de Bancos<br>Reglas de Categorías<br>Importar CSV</div>
+    <div class="layer-box"><strong>Deploy</strong>Vercel · gratis · CI/CD automático</div>
+  </div>
+
+  <div class="layer supabase">
+    <div class="layer-title">Backend <span class="tag">Supabase</span></div>
+    <div class="layer-box"><strong>Auth</strong>Email + magic link<br>JWT por sesión<br>RLS activo en todas las tablas</div>
+    <div class="layer-box"><strong>Base de datos</strong>PostgreSQL<br>Row Level Security por user_id<br>Migraciones versionadas</div>
+    <div class="layer-box"><strong>Storage</strong>Bucket privado por usuario<br>Archivos CSV subidos</div>
+    <div class="layer-box"><strong>Realtime</strong>Notificaciones de alertas<br>en vivo al dashboard</div>
+  </div>
+
+  <div class="layer edge">
+    <div class="layer-title">Edge Functions <span class="tag">Deno</span></div>
+    <div class="layer-box"><strong>ingest-emails (cron 7:30am)</strong>Lee Gmail por banco<br>Parsea cada formato<br>Upsert idempotente en movimientos</div>
+    <div class="layer-box"><strong>classify-transaction</strong>Claude API fallback<br>Aplica reglas manuales primero<br>Retorna categoría + confianza</div>
+    <div class="layer-box"><strong>ai-chat</strong>Chat conversacional<br>Contexto financiero del usuario<br>Claude Sonnet</div>
+    <div class="layer-box"><strong>ai-alerts (cron diario)</strong>Detecta anomalías<br>Genera alertas proactivas<br>Push a realtime</div>
+  </div>
+</div>
+
+<!-- Base de datos -->
+<div class="db-section">
+  <div class="db-title">Modelo de datos — tablas principales</div>
+  <div class="tables">
+    <div class="table-card">
+      <div class="table-name">profiles</div>
+      <div class="col">
+        <span class="pk">user_id</span> uuid FK→auth<br>
+        nombre text<br>
+        email text<br>
+        created_at timestamp
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-name">bancos <span class="new" style="font-size:0.8em">nuevo</span></div>
+      <div class="col">
+        <span class="pk">id</span> uuid PK<br>
+        <span class="fk">user_id</span> uuid FK<br>
+        nombre text<br>
+        gmail_query text<br>
+        parser_config jsonb<br>
+        activo boolean<br>
+        icono text
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-name">movimientos <span class="new" style="font-size:0.8em">unificada</span></div>
+      <div class="col">
+        <span class="pk">id</span> text PK (gmail_id)<br>
+        <span class="fk">user_id</span> uuid FK<br>
+        <span class="fk">banco_id</span> uuid FK<br>
+        fecha date · hora text<br>
+        tipo text · flujo in/out<br>
+        monto numeric<br>
+        descripcion text<br>
+        categoria text<br>
+        categoria_manual boolean<br>
+        regla_aplicada uuid<br>
+        raw text
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-name">categorias</div>
+      <div class="col">
+        <span class="pk">id</span> uuid PK<br>
+        <span class="fk">user_id</span> uuid FK<br>
+        nombre text<br>
+        grupo text<br>
+        subgrupo text<br>
+        icono text · color text
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-name">reglas_categoria <span class="new" style="font-size:0.8em">nuevo</span></div>
+      <div class="col">
+        <span class="pk">id</span> uuid PK<br>
+        <span class="fk">user_id</span> uuid FK<br>
+        <span class="fk">categoria_id</span> uuid FK<br>
+        campo text (descripcion…)<br>
+        operador text (contains…)<br>
+        valor text<br>
+        prioridad int<br>
+        origen text (manual/ai)
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-name">alertas</div>
+      <div class="col">
+        <span class="pk">id</span> uuid PK<br>
+        <span class="fk">user_id</span> uuid FK<br>
+        tipo text<br>
+        titulo text<br>
+        mensaje text<br>
+        leida boolean<br>
+        created_at timestamp
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Flujo de ingesta -->
+<div class="flow">
+  <div class="flow-title">Flujo de ingesta de emails (Edge Function cron — 7:30am)</div>
+  <div class="flow-steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-name">Trigger cron</div>
+      <div class="step-desc">Supabase dispara la Edge Function a las 7:30am</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-name">Leer bancos activos</div>
+      <div class="step-desc">SELECT bancos WHERE activo=true AND user tiene Gmail conectado</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-name">Gmail search</div>
+      <div class="step-desc">Por cada banco: buscar emails de ayer con gmail_query del banco</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-name">Parsear</div>
+      <div class="step-desc">Parser específico por banco (Bancolombia, Nequi, etc.) extrae monto, fecha, tipo</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-name">Clasificar</div>
+      <div class="step-desc">Reglas manuales primero → Claude fallback con confianza</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num">06</div>
+      <div class="step-name">Upsert</div>
+      <div class="step-desc">INSERT ... ON CONFLICT (id) DO NOTHING — idempotente</div>
+    </div>
+  </div>
+</div>
+
+<p style="color:#475569;font-size:0.8em;text-align:center">PersoFinancIA · Diseño Fase 1 + 2 · v1.0</p>
+
+</body>
+</html>

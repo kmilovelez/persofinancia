@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finanzas Personales — Juan Camilo Vélez</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f6fa;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #1a202c;
+    --muted: #718096;
+    --green: #22c55e;
+    --green-bg: #f0fdf4;
+    --green-border: #bbf7d0;
+    --yellow: #f59e0b;
+    --yellow-bg: #fffbeb;
+    --yellow-border: #fde68a;
+    --red: #ef4444;
+    --red-bg: #fef2f2;
+    --red-border: #fecaca;
+    --blue: #3b82f6;
+    --blue-bg: #eff6ff;
+    --blue-border: #bfdbfe;
+    --purple: #8b5cf6;
+    --accent: #2563eb;
+    --sidebar-w: 220px;
+    --header-h: 60px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+  /* Layout */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 10;
+  }
+  .sidebar-logo {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    font-weight: 700; font-size: 15px; color: var(--accent);
+  }
+  .sidebar-logo span { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .nav-section { padding: 12px 8px 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 8px;
+    margin: 2px 8px; cursor: pointer; font-size: 13px; color: var(--muted); transition: all .15s;
+    border: none; background: none; width: calc(100% - 16px); text-align: left;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active { background: var(--blue-bg); color: var(--accent); font-weight: 600; }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .main { margin-left: var(--sidebar-w); flex: 1; }
+  .header {
+    height: var(--header-h); background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 28px; gap: 12px;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .header h1 { font-size: 16px; font-weight: 600; }
+  .header .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 500;
+  }
+  .header .badge.deficit { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .header .badge.ok { background: var(--green-bg); color: #16a34a; border: 1px solid var(--green-border); }
+  .header .updated { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+  .page { display: none; padding: 24px 28px; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; position: relative; overflow: hidden;
+  }
+  .kpi-card .label { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .kpi-card .value { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .kpi-card .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .kpi-card.green { border-left: 4px solid var(--green); }
+  .kpi-card.red { border-left: 4px solid var(--red); }
+  .kpi-card.yellow { border-left: 4px solid var(--yellow); }
+  .kpi-card.blue { border-left: 4px solid var(--blue); }
+  .kpi-card.purple { border-left: 4px solid var(--purple); }
+  .kpi-card .value.green { color: #16a34a; }
+  .kpi-card .value.red { color: var(--red); }
+  .kpi-card .value.yellow { color: #d97706; }
+  .kpi-card .value.blue { color: var(--blue); }
+
+  /* Section */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  .section-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-size: 14px; font-weight: 600; }
+  .section-body { padding: 20px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 2px solid var(--border); background: var(--bg); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  .right { text-align: right; font-variant-numeric: tabular-nums; }
+  .mono { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; }
+
+  /* Badges */
+  .badge-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500;
+  }
+  .badge-green { background: var(--green-bg); color: #16a34a; border: 1px solid var(--green-border); }
+  .badge-red { background: var(--red-bg); color: #dc2626; border: 1px solid var(--red-border); }
+  .badge-yellow { background: var(--yellow-bg); color: #b45309; border: 1px solid var(--yellow-border); }
+  .badge-blue { background: var(--blue-bg); color: #1d4ed8; border: 1px solid var(--blue-border); }
+  .badge-purple { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+
+  /* Alert */
+  .alert { border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-red { background: var(--red-bg); border: 1px solid var(--red-border); color: #991b1b; }
+  .alert-yellow { background: var(--yellow-bg); border: 1px solid var(--yellow-border); color: #92400e; }
+  .alert-green { background: var(--green-bg); border: 1px solid var(--green-border); color: #166534; }
+  .alert-blue { background: var(--blue-bg); border: 1px solid var(--blue-border); color: #1e40af; }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Charts */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-wrap-tall { position: relative; height: 320px; }
+
+  /* Progress bar */
+  .progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .progress-label { width: 160px; font-size: 12px; color: var(--text); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .progress-bar-wrap { flex: 1; background: var(--bg); border-radius: 99px; height: 8px; overflow: hidden; }
+  .progress-bar { height: 8px; border-radius: 99px; transition: width .5s; }
+  .progress-value { width: 90px; text-align: right; font-size: 12px; color: var(--muted); font-family: 'SF Mono', monospace; flex-shrink: 0; }
+
+  /* Proyección escenario comparison */
+  .esc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .esc-card { border-radius: 10px; padding: 16px 18px; border: 2px solid; }
+  .esc-a { background: #fef2f2; border-color: #fecaca; }
+  .esc-b { background: #f0fdf4; border-color: #bbf7d0; }
+  .esc-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .esc-a .esc-title { color: #991b1b; }
+  .esc-b .esc-title { color: #166534; }
+  .esc-metric { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,.06); }
+  .esc-metric:last-child { border-bottom: none; }
+
+  /* Plan steps */
+  .plan-step { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .plan-step:last-child { border-bottom: none; }
+  .plan-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .plan-num.high { background: var(--red-bg); color: var(--red); border: 2px solid var(--red-border); }
+  .plan-num.med { background: var(--yellow-bg); color: #d97706; border: 2px solid var(--yellow-border); }
+  .plan-num.low { background: var(--green-bg); color: #16a34a; border: 2px solid var(--green-border); }
+  .plan-content { flex: 1; }
+  .plan-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .plan-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Impact box for $20M */
+  .impact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .impact-card { border-radius: 10px; padding: 14px; text-align: center; border: 1px solid; }
+  .impact-card .i-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .impact-card .i-before { font-size: 12px; color: var(--muted); text-decoration: line-through; margin-bottom: 2px; }
+  .impact-card .i-after { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .impact-card .i-delta { font-size: 11px; font-weight: 600; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .esc-grid { grid-template-columns: 1fr; }
+    .impact-grid { grid-template-columns: 1fr 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">💰 Finanzas<span>Juan Camilo Vélez • 2026</span></div>
+    <div class="nav-section">Vistas</div>
+    <button class="nav-item active" onclick="showPage('dashboard')"><span class="icon">🏠</span>Dashboard</button>
+    <button class="nav-item" onclick="showPage('deudas')"><span class="icon">💳</span>Deudas</button>
+    <button class="nav-item" onclick="showPage('gastos')"><span class="icon">📤</span>Gastos</button>
+    <button class="nav-item" onclick="showPage('suscripciones')"><span class="icon">🔁</span>Suscripciones</button>
+    <button class="nav-item" onclick="showPage('movimientos')"><span class="icon">📋</span>Movimientos</button>
+    <div class="nav-section">Análisis</div>
+    <button class="nav-item" onclick="showPage('proyeccion')"><span class="icon">📈</span>Proyección 2026</button>
+    <button class="nav-item" onclick="showPage('escenario20m')"><span class="icon">💡</span>Escenario $20M</button>
+    <button class="nav-item" onclick="showPage('recomendaciones')"><span class="icon">🎯</span>Recomendaciones</button>
+  </nav>
+
+  <!-- Main content -->
+  <div class="main">
+    <div class="header">
+      <h1 id="page-title">Dashboard General</h1>
+      <span class="badge deficit" id="flujo-badge">⚠️ Déficit -$526K/mes</span>
+      <span class="updated">Actualizado: Mayo 2026 (datos v19)</span>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="kpi-grid">
+        <div class="kpi-card green">
+          <div class="label">Ingreso Neto Mensual</div>
+          <div class="value green">$15.8M</div>
+          <div class="sub">Matec Logística · 2 quincenas</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="label">Total Egresos Fijos</div>
+          <div class="value red">$16.3M</div>
+          <div class="sub">Incl. deudas + servicios + doméstico</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="label">Superávit / Déficit</div>
+          <div class="value red">-$526K</div>
+          <div class="sub">Déficit estructural mensual</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="label">Total Deuda</div>
+          <div class="value red">$268M</div>
+          <div class="sub">6 obligaciones activas</div>
+        </div>
+        <div class="kpi-card yellow">
+          <div class="label">Carga de Deuda</div>
+          <div class="value yellow">51.9%</div>
+          <div class="sub">del ingreso neto · límite saludable: 40%</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="label">Cuotas Mensuales</div>
+          <div class="value blue">$8.6M</div>
+          <div class="sub">6 créditos activos</div>
+        </div>
+      </div>
+
+      <div class="alert alert-red">
+        <span class="alert-icon">🚨</span>
+        <div><strong>RappiCard en espiral:</strong> Escenario sin cambios → saldo sube de $4.9M a $20.9M en diciembre 2026 (+$16M en 8 meses). Pagar solo el mínimo la hace impagable.</div>
+      </div>
+      <div class="alert alert-yellow">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Déficit mid-mes (días 17–18):</strong> SUFI $3.3M + Banco de Occidente $2.1M = $5.4M vencen 2 días después de la 1ª quincena ($7.4M). Margen: $1.9M — cualquier imprevisto quiebra el flujo.</div>
+      </div>
+      <div class="alert alert-yellow">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Gastos fijos superan el ingreso:</strong> Obligaciones fijas $16,322,938 vs ingreso neto $15,796,516 → déficit base de $526,422/mes sin contar variables (gasolina, mercado, Rappi).</div>
+      </div>
+      <div class="alert alert-blue">
+        <span class="alert-icon">💡</span>
+        <div><strong>Fortaleza:</strong> Ingreso estable y predecible. La estructura es manejable si se controla la RappiCard y se alinean las fechas de pago. El escenario $20M de venta del carro cambia el panorama completamente.</div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">Ingresos vs Egresos</div>
+          <div class="chart-wrap"><canvas id="chartInvE"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Composición de Egresos</div>
+          <div class="chart-wrap"><canvas id="chartEgresosDonut"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Carga de deuda vs ingreso</span><span class="badge-pill badge-red">🔴 Límite superado: 40%</span></div>
+        <div class="section-body">
+          <div class="progress-row">
+            <span class="progress-label">SUFI – Crédito Vehículo</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:21.1%;background:#ef4444"></div></div>
+            <span class="progress-value">$3,337,391</span>
+          </div>
+          <div class="progress-row">
+            <span class="progress-label">Banco de Occidente</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:13.5%;background:#f97316"></div></div>
+            <span class="progress-value">$2,138,720</span>
+          </div>
+          <div class="progress-row">
+            <span class="progress-label">RappiCard *0910</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:9.8%;background:#eab308"></div></div>
+            <span class="progress-value">$1,548,624</span>
+          </div>
+          <div class="progress-row">
+            <span class="progress-label">Finandina TC *1438</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:2.4%;background:#a855f7"></div></div>
+            <span class="progress-value">$386,173</span>
+          </div>
+          <div class="progress-row">
+            <span class="progress-label">Finandina Créd. 1385</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:4.5%;background:#3b82f6"></div></div>
+            <span class="progress-value">$707,771</span>
+          </div>
+          <div class="progress-row">
+            <span class="progress-label">Lulo Bank</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:3.4%;background:#22c55e"></div></div>
+            <span class="progress-value">$538,107</span>
+          </div>
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+          <div class="progress-row">
+            <span class="progress-label" style="font-weight:600">TOTAL DEUDAS</span>
+            <div class="progress-bar-wrap"><div class="progress-bar" style="width:54.4%;background:#1d4ed8"></div></div>
+            <span class="progress-value" style="color:#1d4ed8;font-weight:600">$8,656,786</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEUDAS -->
+    <div id="page-deudas" class="page">
+      <div class="kpi-grid">
+        <div class="kpi-card red">
+          <div class="label">Saldo Total Deudas</div>
+          <div class="value red">$268.4M</div>
+          <div class="sub">6 obligaciones activas</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="label">Cuota Total / Mes</div>
+          <div class="value red">$8.66M</div>
+          <div class="sub">54.9% del ingreso neto</div>
+        </div>
+        <div class="kpi-card yellow">
+          <div class="label">Tasa más alta</div>
+          <div class="value yellow">26.66%</div>
+          <div class="sub">Finandina TC *1438 — CONGELADA</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="label">Pagos próximos 10 días</div>
+          <div class="value blue">$7.1M</div>
+          <div class="sub">Finandina + Occidente + SUFI</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Compromisos bancarios — Abril 2026</span></div>
+        <div class="section-body" style="padding:0">
+          <table>
+            <thead>
+              <tr>
+                <th>Entidad / Producto</th>
+                <th class="right">Saldo</th>
+                <th class="right">Cuota/Mes</th>
+                <th class="right">Tasa E.A.</th>
+                <th>Estado</th>
+                <th>Próx. Pago</th>
+                <th>Cuotas Rest.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>SUFI — Crédito Vehículo</strong><br><span style="font-size:11px;color:var(--muted)">Bancolombia · Jul 2025 · 72m</span></td>
+                <td class="right mono">$134,652,211</td>
+                <td class="right mono">$3,337,391</td>
+                <td class="right"><span class="badge-pill badge-green">12%</span></td>
+                <td><span class="badge-pill badge-green">✅ Al día</span></td>
+                <td>18 Abr 2026</td>
+                <td class="right">~60</td>
+              </tr>
+              <tr>
+                <td><strong>Banco de Occidente ****2747</strong><br><span style="font-size:11px;color:var(--muted)">Préstamo Personal · $163M original</span></td>
+                <td class="right mono">$101,637,350</td>
+                <td class="right mono">$2,138,720</td>
+                <td class="right"><span class="badge-pill badge-green">9.38%</span></td>
+                <td><span class="badge-pill badge-green">✅ Al día</span></td>
+                <td>17 Abr 2026</td>
+                <td class="right">111</td>
+              </tr>
+              <tr>
+                <td><strong>Finandina — Créd. L.I. Nº 1385</strong><br><span style="font-size:11px;color:var(--muted)">$25M original · 60 cuotas</span></td>
+                <td class="right mono">$10,448,488</td>
+                <td class="right mono">$707,771</td>
+                <td class="right"><span class="badge-pill badge-yellow">25.51%</span></td>
+                <td><span class="badge-pill badge-green">✅ Al día</span></td>
+                <td>15 Abr 2026</td>
+                <td class="right">41</td>
+              </tr>
+              <tr>
+                <td><strong>Finandina — TC Oro Digital *1438</strong><br><span style="font-size:11px;color:var(--muted)">Cupo $10M · disp. $44K</span></td>
+                <td class="right mono">$9,890,286</td>
+                <td class="right mono">$386,173</td>
+                <td class="right"><span class="badge-pill badge-red">26.66%</span></td>
+                <td><span class="badge-pill badge-red">❄️ Congelada</span></td>
+                <td>23 Abr 2026</td>
+                <td class="right">∞</td>
+              </tr>
+              <tr>
+                <td><strong>Lulo Bank — Crédito Personal</strong><br><span style="font-size:11px;color:var(--muted)">$8.2M original · Dic 2025</span></td>
+                <td class="right mono">$7,115,497</td>
+                <td class="right mono">$538,107</td>
+                <td class="right"><span class="badge-pill badge-yellow">20%</span></td>
+                <td><span class="badge-pill badge-green">✅ Al día</span></td>
+                <td>20 Abr 2026</td>
+                <td class="right">15</td>
+              </tr>
+              <tr>
+                <td><strong>RappiCard *0910 (Davivienda)</strong><br><span style="font-size:11px;color:var(--muted)">Cupo $5M · disp. $101K · corte 29 Abr</span></td>
+                <td class="right mono">$4,898,564</td>
+                <td class="right mono">$1,548,624</td>
+                <td class="right"><span class="badge-pill badge-red">~26%</span></td>
+                <td><span class="badge-pill badge-yellow">⚠️ Mín.</span></td>
+                <td>10 May 2026</td>
+                <td class="right">∞</td>
+              </tr>
+              <tr>
+                <td><strong>ADDI — BNPL</strong><br><span style="font-size:11px;color:var(--muted)">3 cuotas × 0% interés</span></td>
+                <td class="right mono">$250,633</td>
+                <td class="right mono">$83,544</td>
+                <td class="right"><span class="badge-pill badge-green">0%</span></td>
+                <td><span class="badge-pill badge-green">✅ Al día</span></td>
+                <td>5 May 2026</td>
+                <td class="right">3</td>
+              </tr>
+              <tr style="background:#f8fafc;font-weight:700">
+                <td>TOTAL</td>
+                <td class="right mono" style="color:var(--red)">$268,892,999</td>
+                <td class="right mono" style="color:var(--red)">$8,740,330</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">Distribución de saldos por entidad</div>
+          <div class="chart-wrap"><canvas id="chartDeudaSaldos"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Costo mensual por deuda (tasa × saldo)</div>
+          <div class="chart-wrap"><canvas id="chartDeudaCosto"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GASTOS -->
+    <div id="page-gastos" class="page">
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="label">Arriendo</div>
+          <div class="value blue">$2,969,815</div>
+          <div class="sub">18.8% del ingreso</div>
+        </div>
+        <div class="kpi-card yellow">
+          <div class="label">Deudas (cuotas)</div>
+          <div class="value yellow">$8,740,330</div>
+          <div class="sub">55.3% del ingreso</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="label">Variables estimados</div>
+          <div class="value green">~$1,000,000</div>
+          <div class="sub">Gasolina + mercado + Rappi</div>
+        </div>
+        <div class="kpi-card purple">
+          <div class="label">Servicio doméstico</div>
+          <div class="value" style="color:var(--purple)">~$2,651,000</div>
+          <div class="sub">Julieth + Symplifica seg. social</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">Gastos fijos por categoría</div>
+          <div class="chart-wrap"><canvas id="chartGastosBar"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">% del ingreso neto</div>
+          <div class="chart-wrap"><canvas id="chartGastosPct"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Detalle egresos fijos mensuales</span></div>
+        <div class="section-body" style="padding:0">
+          <table>
+            <thead><tr><th>Concepto</th><th>Tipo</th><th class="right">Monto/Mes</th><th class="right">% Ingreso</th></tr></thead>
+            <tbody>
+              <tr><td>Arriendo (canon + PSE)</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$2,969,815</td><td class="right">18.8%</td></tr>
+              <tr><td>SUFI — Crédito Vehículo</td><td><span class="badge-pill badge-red">Deuda</span></td><td class="right mono">$3,337,391</td><td class="right">21.1%</td></tr>
+              <tr><td>Banco de Occidente ****2747</td><td><span class="badge-pill badge-red">Deuda</span></td><td class="right mono">$2,138,720</td><td class="right">13.5%</td></tr>
+              <tr><td>RappiCard *0910 — pago mínimo</td><td><span class="badge-pill badge-red">Deuda</span></td><td class="right mono">$1,548,624</td><td class="right">9.8%</td></tr>
+              <tr><td>Finandina Créd. L.I. Nº 1385</td><td><span class="badge-pill badge-red">Deuda</span></td><td class="right mono">$707,771</td><td class="right">4.5%</td></tr>
+              <tr><td>Finandina TC Oro *1438</td><td><span class="badge-pill badge-red">Deuda</span></td><td class="right mono">$386,173</td><td class="right">2.4%</td></tr>
+              <tr><td>Lulo Bank — Crédito Personal</td><td><span class="badge-pill badge-red">Deuda</span></td><td class="right mono">$538,107</td><td class="right">3.4%</td></tr>
+              <tr><td>ADDI BNPL</td><td><span class="badge-pill badge-green">0% interés</span></td><td class="right mono">$83,544</td><td class="right">0.5%</td></tr>
+              <tr><td>Symplifica — Seg. Social Julieth</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$653,200</td><td class="right">4.1%</td></tr>
+              <tr><td>Servicio doméstico (Julieth — salario base)</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$1,750,905</td><td class="right">11.1%</td></tr>
+              <tr><td>Auxilio transporte Julieth</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$249,095</td><td class="right">1.6%</td></tr>
+              <tr><td>Internet Movistar Hogar</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$91,019</td><td class="right">0.6%</td></tr>
+              <tr><td>Extracurriculares Tomás</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$240,000</td><td class="right">1.5%</td></tr>
+              <tr><td>KUMON (hijo)</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$390,000</td><td class="right">2.5%</td></tr>
+              <tr><td>Claro — 3 líneas (mamá, esposa, Juan)</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$160,118</td><td class="right">1.0%</td></tr>
+              <tr><td>EMMI — Suscripción (mamá + suegra)</td><td><span class="badge-pill badge-blue">Fijo</span></td><td class="right mono">$152,000</td><td class="right">1.0%</td></tr>
+              <tr><td>Gasolina (estimado)</td><td><span class="badge-pill badge-yellow">Variable</span></td><td class="right mono">$350,000</td><td class="right">2.2%</td></tr>
+              <tr><td>Mercado / alimentación (estimado)</td><td><span class="badge-pill badge-yellow">Variable</span></td><td class="right mono">$400,000</td><td class="right">2.5%</td></tr>
+              <tr><td>Rappi pedidos (estimado)</td><td><span class="badge-pill badge-yellow">Variable</span></td><td class="right mono">$250,000</td><td class="right">1.6%</td></tr>
+              <tr style="background:#f8fafc;font-weight:700">
+                <td>TOTAL ESTIMADO</td><td></td>
+                <td class="right mono" style="color:var(--red)">~$16,396,482</td>
+                <td class="right" style="color:var(--red)">~103.8%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUSCRIPCIONES -->
+    <div id="page-suscripciones" class="page">
+      <div class="kpi-grid">
+        <div class="kpi-card yellow">
+          <div class="label">Total Suscripciones</div>
+          <div class="value yellow">~$584,578</div>
+          <div class="sub">Sin contar Anthropic/Claude variable</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="label">Suscripciones / año</div>
+          <div class="value blue">~$7M</div>
+          <div class="sub">Solo digitales — RappiCard *0910</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="label">Anthropic/Claude (Mar)</div>
+          <div class="value red">~$514,000</div>
+          <div class="sub">5 cargos ese mes · revisar</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="label">Ahorro potencial</div>
+          <div class="value green">~$179K/mes</div>
+          <div class="sub">Google One duplic. + revisar Anthropic</div>
+        </div>
+      </div>
+
+      <div class="alert alert-yellow">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Google One — cobro doble en marzo:</strong> $79,000 (11-mar) + $99,000 (12-mar). Verificar en <strong>pay.google.com</strong> si hay dos planes activos. Cancelar el duplicado = ahorro ~$79,000/mes.</div>
+      </div>
+      <div class="alert alert-red">
+        <span class="alert-icon">🚨</span>
+        <div><strong>Anthropic/Claude — 5 cargos en marzo ($513,934):</strong> 2 suscripciones ($380,824) + 3 cargos API ($133,110). Verificar si ambas suscripciones son necesarias o si conviene un solo plan con crédito API incluido.</div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Suscripciones digitales — RappiCard *0910</span><span style="font-size:12px;color:var(--muted)">Ene–Abr 2026</span></div>
+        <div class="section-body" style="padding:0">
+          <table>
+            <thead><tr><th>Servicio</th><th class="right">$/Mes (COP)</th><th>Fecha cobro</th><th>Notas</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>🎵 YouTube Premium</td>
+                <td class="right mono">$41,900</td>
+                <td>~día 14</td>
+                <td style="font-size:12px;color:var(--muted)">Confirmado ene–abr</td>
+              </tr>
+              <tr>
+                <td>🤖 ChatGPT Plus</td>
+                <td class="right mono">$81,000</td>
+                <td>~día 14</td>
+                <td style="font-size:12px;color:var(--muted)">~$20 USD</td>
+              </tr>
+              <tr>
+                <td>☁️ Google One</td>
+                <td class="right mono">$99,000</td>
+                <td>~día 12</td>
+                <td style="font-size:12px;color:var(--muted)"><span class="badge-pill badge-yellow">⚠️ Verificar doble cobro</span></td>
+              </tr>
+              <tr>
+                <td>🍎 Apple (iCloud+/One)</td>
+                <td class="right mono">$29,900</td>
+                <td>~día 18</td>
+                <td style="font-size:12px;color:var(--muted)">Confirmado ene–mar</td>
+              </tr>
+              <tr>
+                <td>📺 Disney Plus</td>
+                <td class="right mono">$34,900</td>
+                <td>~día 28</td>
+                <td style="font-size:12px;color:var(--muted)">Confirmado ene–abr</td>
+              </tr>
+              <tr>
+                <td>📚 Audible</td>
+                <td class="right mono">$33,988</td>
+                <td>~día 27</td>
+                <td style="font-size:12px;color:var(--muted)">~$8.5 USD</td>
+              </tr>
+              <tr>
+                <td>🎬 Amazon Prime</td>
+                <td class="right mono">$24,900</td>
+                <td>~día 1</td>
+                <td style="font-size:12px;color:var(--muted)">Confirmado ene–abr</td>
+              </tr>
+              <tr>
+                <td>🛵 Rappi+ / Turbo</td>
+                <td class="right mono">$32,990</td>
+                <td>~día 31</td>
+                <td style="font-size:12px;color:var(--muted)">Plan Rappi mensual</td>
+              </tr>
+              <tr>
+                <td>🤖 Claude AI (Anthropic)</td>
+                <td class="right mono" style="color:var(--red)">~$200-300K</td>
+                <td>~día 17–18</td>
+                <td style="font-size:12px;color:var(--muted)"><span class="badge-pill badge-red">🚨 5 cargos en marzo</span></td>
+              </tr>
+              <tr style="background:#f8fafc;font-weight:700">
+                <td>TOTAL (sin Anthropic)</td>
+                <td class="right mono" style="color:var(--yellow)">$378,578</td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="chart-box" style="margin-top:20px">
+        <div class="chart-title">Suscripciones por monto (COP/mes)</div>
+        <div class="chart-wrap"><canvas id="chartSubs"></canvas></div>
+      </div>
+    </div>
+
+    <!-- MOVIMIENTOS -->
+    <div id="page-movimientos" class="page">
+      <div class="kpi-grid">
+        <div class="kpi-card green">
+          <div class="label">Ingresos período</div>
+          <div class="value green">$34,843,050</div>
+          <div class="sub">Nómina + transferencias · Mar–Abr 2026</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="label">Egresos período</div>
+          <div class="value red">$29,152,149</div>
+          <div class="sub">93 transacciones · Mar–Abr 2026</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="label">Balance período</div>
+          <div class="value green">+$5,690,901</div>
+          <div class="sub">Incluye pagos anuales (predial, valor.)</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="label">Transacciones</div>
+          <div class="value blue">102</div>
+          <div class="sub">Cuenta Bancolombia *4902/*4000</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">Egresos por categoría (Top 12)</div>
+          <div class="chart-wrap-tall"><canvas id="chartMovCat"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Distribución del gasto</div>
+          <div class="chart-wrap-tall"><canvas id="chartMovDonut"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Detalle de transacciones — Bancolombia Mar–Abr 2026</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="filtroTipo" onchange="filtrarMovs()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+              <option value="">Todos los tipos</option>
+              <option value="Ingreso">Ingresos</option>
+              <option value="Compra">Compras</option>
+              <option value="Pago">Pagos / Deudas</option>
+              <option value="Transferencia enviada">Transf. enviadas</option>
+              <option value="Transferencia recibida">Transf. recibidas</option>
+              <option value="Retiro">Retiros</option>
+            </select>
+            <select id="filtroMes" onchange="filtrarMovs()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+              <option value="">Todos los meses</option>
+              <option value="03">Marzo 2026</option>
+              <option value="04">Abril 2026</option>
+            </select>
+            <input id="filtroTexto" oninput="filtrarMovs()" placeholder="Buscar…" style="font-size:12px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;width:140px">
+          </div>
+        </div>
+        <div style="padding:0;overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Comercio / Destinatario</th>
+                <th>Categoría</th>
+                <th>Cta.</th>
+                <th class="right">Monto</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-movs"></tbody>
+          </table>
+          <div id="movs-empty" style="display:none;padding:20px;text-align:center;color:var(--muted);font-size:13px">Sin resultados para el filtro actual.</div>
+        </div>
+        <div style="padding:10px 16px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;color:var(--muted)" id="movs-count"></div>
+      </div>
+    </div>
+
+    <!-- PROYECCIÓN 2026 -->
+    <div id="page-proyeccion" class="page">
+      <div class="alert alert-red">
+        <span class="alert-icon">📉</span>
+        <div><strong>Escenario A (sin cambios):</strong> El saldo acumulado cae mes a mes. Para dic 2026 se proyecta un déficit acumulado de <strong>-$2,009,804</strong> y la RappiCard llegaría a <strong>$20.9M</strong>.</div>
+      </div>
+      <div class="alert alert-green">
+        <span class="alert-icon">📈</span>
+        <div><strong>Escenario B (con plan coaching):</strong> Mismo ingreso/egreso pero con disciplina en RappiCard y ajustes de flujo. RappiCard baja a <strong>$1.2M</strong> en dic 2026. La deuda total se reduce $41.3M.</div>
+      </div>
+
+      <div class="esc-grid">
+        <div class="esc-a esc-card">
+          <div class="esc-title">⚠️ Escenario A — Sin cambios</div>
+          <div class="esc-metric"><span>Saldo dic 2026</span><strong style="color:#991b1b">-$2,009,804</strong></div>
+          <div class="esc-metric"><span>RappiCard dic 2026</span><strong style="color:#991b1b">$20,902,614</strong></div>
+          <div class="esc-metric"><span>Déficit mensual</span><strong style="color:#991b1b">-$609,966/mes</strong></div>
+          <div class="esc-metric"><span>Punto más bajo mes</span><strong style="color:#991b1b">Día 17–18 del mes</strong></div>
+        </div>
+        <div class="esc-b esc-card">
+          <div class="esc-title">✅ Escenario B — Con coaching</div>
+          <div class="esc-metric"><span>Saldo dic 2026</span><strong style="color:#166534">-$2,009,804</strong></div>
+          <div class="esc-metric"><span>RappiCard dic 2026</span><strong style="color:#166534">$1,182,659</strong></div>
+          <div class="esc-metric"><span>Ahorro en deuda total</span><strong style="color:#166534">-$41,300,000</strong></div>
+          <div class="esc-metric"><span>Deuda total dic 2026</span><strong style="color:#166534">$226,892,059</strong></div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-box">
+          <div class="chart-title">Evolución saldo RappiCard — Escenario A vs B</div>
+          <div class="chart-wrap-tall"><canvas id="chartProyRappi"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Deuda total proyectada (Escenario B)</div>
+          <div class="chart-wrap-tall"><canvas id="chartProyDeuda"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Proyección mensual — Flujo base</span></div>
+        <div class="section-body" style="padding:0">
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th class="right">Saldo Inicio</th>
+                <th class="right">Ingresos</th>
+                <th class="right">Egresos</th>
+                <th class="right">Saldo Fin (A)</th>
+                <th class="right">RappiCard (A)</th>
+                <th class="right">RappiCard (B)</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-proyeccion"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESCENARIO $20M -->
+    <div id="page-escenario20m" class="page">
+      <div class="alert alert-blue">
+        <span class="alert-icon">💡</span>
+        <div><strong>Escenario: Venta del carro + recibir $20,000,000.</strong> Análisis de asignación óptima usando método Avalancha (eliminar primero deudas con mayor tasa EA).</div>
+      </div>
+
+      <div class="impact-grid">
+        <div class="impact-card" style="background:var(--green-bg);border-color:var(--green-border)">
+          <div class="i-label" style="color:#16a34a">Superávit mensual</div>
+          <div class="i-before">$858,208</div>
+          <div class="i-after" style="color:#16a34a">$2,390,660</div>
+          <div class="i-delta" style="color:#16a34a">+$1,532,452/mes (+179%)</div>
+        </div>
+        <div class="impact-card" style="background:var(--blue-bg);border-color:var(--blue-border)">
+          <div class="i-label" style="color:#1d4ed8">TCs activas</div>
+          <div class="i-before">2 activas (Rappi + Fin.*1438)</div>
+          <div class="i-after" style="color:#1d4ed8">CERO ✅</div>
+          <div class="i-delta" style="color:#1d4ed8">Sin riesgo espiral deuda</div>
+        </div>
+        <div class="impact-card" style="background:var(--yellow-bg);border-color:var(--yellow-border)">
+          <div class="i-label" style="color:#b45309">Deuda total</div>
+          <div class="i-before">$268,437,913</div>
+          <div class="i-after" style="color:#b45309">$251,437,913</div>
+          <div class="i-delta" style="color:#b45309">-$17,000,000</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Plan óptimo de asignación — $20,000,000</span><span style="font-size:12px;color:var(--muted)">Método: Avalancha (mayor tasa primero)</span></div>
+        <div class="section-body" style="padding:0">
+          <table>
+            <thead><tr><th>#</th><th>Destino</th><th class="right">Monto</th><th class="right">Tasa</th><th>Resultado</th><th class="right">Flujo Liberado/mes</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="badge-pill badge-blue">1</span></td>
+                <td><strong>Fondo de Emergencia (CDT 90 días ~8% EA)</strong></td>
+                <td class="right mono">$3,000,000</td>
+                <td class="right"><span class="badge-pill badge-green">~8%</span></td>
+                <td>3 meses gastos · protección</td>
+                <td class="right" style="color:var(--muted)">Colchón</td>
+              </tr>
+              <tr>
+                <td><span class="badge-pill badge-red">2</span></td>
+                <td><strong>Liquidar Finandina TC *1438 (26.66% EA)</strong></td>
+                <td class="right mono">$9,890,286</td>
+                <td class="right"><span class="badge-pill badge-red">26.66%</span></td>
+                <td><span class="badge-pill badge-green">✅ ELIMINADA</span></td>
+                <td class="right mono" style="color:#16a34a">+$386,173</td>
+              </tr>
+              <tr>
+                <td><span class="badge-pill badge-red">3</span></td>
+                <td><strong>Liquidar RappiCard *0910 (26% EA)</strong></td>
+                <td class="right mono">$4,443,448</td>
+                <td class="right"><span class="badge-pill badge-red">26%</span></td>
+                <td><span class="badge-pill badge-green">✅ ELIMINADA</span></td>
+                <td class="right mono" style="color:#16a34a">+$1,146,279</td>
+              </tr>
+              <tr>
+                <td><span class="badge-pill badge-yellow">4</span></td>
+                <td><strong>Abono Finandina 1385 (25.51% EA)</strong></td>
+                <td class="right mono">$2,666,266</td>
+                <td class="right"><span class="badge-pill badge-yellow">25.51%</span></td>
+                <td>Saldo → $7,782,222 · pagada Mar 2027</td>
+                <td class="right" style="color:var(--muted)">Parcial</td>
+              </tr>
+              <tr style="background:#f0fdf4;font-weight:700">
+                <td></td>
+                <td>TOTAL ASIGNADO</td>
+                <td class="right mono">$20,000,000</td>
+                <td></td>
+                <td></td>
+                <td class="right mono" style="color:#16a34a">+$1,532,452/mes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="chart-box" style="margin-bottom:20px">
+        <div class="chart-title">Proyección mensual — saldo acumulado con $20M (Mayo 2026 – Abr 2027)</div>
+        <div class="chart-wrap-tall"><canvas id="chart20m"></canvas></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Plan de acción — semana 1</span></div>
+        <div class="section-body">
+          <div class="plan-step">
+            <div class="plan-num high">1</div>
+            <div class="plan-content">
+              <div class="plan-title">Día 1: Separar los 4 destinos antes de tocar el dinero</div>
+              <div class="plan-desc">Antes de cualquier movimiento, tener claridad mental de los 4 destinos: CDT $3M + Finandina TC $9.89M + RappiCard $4.44M + abono Finandina 1385 $2.67M. Total: $20M exactos.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num high">2</div>
+            <div class="plan-content">
+              <div class="plan-title">Día 1–2: Abrir CDT a 90 días por $3,000,000</div>
+              <div class="plan-desc">Bancolombia, Nu o Nequi (~8% EA). Esto garantiza un colchón de 3 meses de gastos básicos sin necesidad de volver a usar crédito.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num high">3</div>
+            <div class="plan-content">
+              <div class="plan-title">Día 2: Pagar saldo total Finandina TC *1438 → $9,890,286 → cerrar tarjeta</div>
+              <div class="plan-desc">Tarjeta congelada pero cobrando $386K/mes en intereses. Cada mes de espera = ~$219K en intereses perdidos. Pagar y solicitar cierre definitivo.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num high">4</div>
+            <div class="plan-content">
+              <div class="plan-title">Día 2: Pagar saldo total RappiCard *0910 → $4,443,448 → cerrar tarjeta</div>
+              <div class="plan-desc">Quedar sin tarjetas de crédito activas elimina el riesgo de volver a generar deuda. Libera $1,146K/mes en pagos mínimos.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num med">5</div>
+            <div class="plan-content">
+              <div class="plan-title">Día 3: Abono a Finandina 1385 → $2,666,266</div>
+              <div class="plan-desc">Saldo queda en $7,782,222 (~11 cuotas restantes). Pagada ~Mar 2027 → libera $707K/mes adicionales.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num med">6</div>
+            <div class="plan-content">
+              <div class="plan-title">Próxima semana: Solicitar a SUFI mover fecha pago del 18 al 30</div>
+              <div class="plan-desc">Tel. SUFI: 01-8000-912-345. Argumento: "Mi nómina se paga los 30, solicito cambio de fecha de vencimiento para alinear el pago". Elimina el déficit crónico de la 3ª semana.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num low">7</div>
+            <div class="plan-content">
+              <div class="plan-title">Oct 2026: Lulo Bank queda liquidada → +$538K/mes libres</div>
+              <div class="plan-desc">Efecto bola de nieve: cada obligación que termina libera flujo para atacar la siguiente. Desde oct 2026 superávit mensual supera $2M.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num low">8</div>
+            <div class="plan-content">
+              <div class="plan-title">Mar 2027: Finandina 1385 liquidada → +$707K/mes libres</div>
+              <div class="plan-desc">Desde Mar 2027: solo quedan SUFI ($3,337K) + Banco Occidente ($2,138K) = $5,475K en deudas de tasas bajas (9–12%). Superávit mensual ~$3,100,000+.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOMENDACIONES -->
+    <div id="page-recomendaciones" class="page">
+      <div class="kpi-grid">
+        <div class="kpi-card red">
+          <div class="label">Alertas críticas</div>
+          <div class="value red">3</div>
+          <div class="sub">Acción inmediata requerida</div>
+        </div>
+        <div class="kpi-card yellow">
+          <div class="label">Alertas medias</div>
+          <div class="value yellow">2</div>
+          <div class="sub">Atender este mes</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="label">Fortaleza</div>
+          <div class="value green">1</div>
+          <div class="sub">Ingreso estable y predecible</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Plan de acción financiero</span></div>
+        <div class="section-body">
+          <div class="plan-step">
+            <div class="plan-num high">1</div>
+            <div class="plan-content">
+              <div class="plan-title">🔴 URGENTE: Pagar más que el mínimo de RappiCard</div>
+              <div class="plan-desc">El saldo crece mes a mes (~+$1.4M Escenario A). Con tasas del ~26% EA, la deuda llegará a $20.9M en diciembre si solo pagas el mínimo. Destina mínimo $500K extra/mes para bajar capital. Meta: pago de $2M/mes.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num high">2</div>
+            <div class="plan-content">
+              <div class="plan-title">🔴 URGENTE: Verificar doble cobro Google One</div>
+              <div class="plan-desc">Dos cargos detectados en marzo: $79,000 (11-mar) y $99,000 (12-mar). Entrar a <strong>pay.google.com</strong> y verificar si hay dos planes activos. Cancelar el duplicado → ahorro ~$79,000/mes (~$948K/año).</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num high">3</div>
+            <div class="plan-content">
+              <div class="plan-title">🔴 URGENTE: Auditar cargos Anthropic/Claude</div>
+              <div class="plan-desc">5 cargos en marzo: 2 suscripciones ($305,271 + $75,553) + 3 API ($75,684 + $18,888 + $38,538) = ~$513,934 ese mes. Revisar si necesitas ambas suscripciones o si conviene migrar a un único plan con crédito API incluido.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num med">4</div>
+            <div class="plan-content">
+              <div class="plan-title">🟠 Solicitar cambio de fecha de pago SUFI: del 18 al 30</div>
+              <div class="plan-desc">SUFI ($3.3M) + Banco Occidente ($2.1M) vencen días 17–18, apenas 2 días después de la 1ª quincena ($7.4M). Mover SUFI al 30 alinea el flujo y elimina el déficit crónico de la 3ª semana. Tel: 01-8000-912-345.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num med">5</div>
+            <div class="plan-content">
+              <div class="plan-title">🟡 Crear fondo de emergencia mínimo: $3,000,000</div>
+              <div class="plan-desc">Un mes de obligaciones fijas = ~$16M. Con $3M de buffer en CDT 30 días (~8% EA, Bancolombia o Nequi) eliminas el estrés de inicio de mes y evitas volver a usar crédito ante imprevistos. Aporte mensual: $300K–500K. Meta: agosto 2026.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num med">6</div>
+            <div class="plan-content">
+              <div class="plan-title">🟡 Agosto 2026: Cuando ADDI termine, redirigir $83,544/mes a RappiCard</div>
+              <div class="plan-desc">ADDI se paga en julio 2026. Esos $83,544/mes pasan automáticamente a aumentar el pago de RappiCard. Efecto bola de nieve: cada deuda que termina financia la siguiente.</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num low">7</div>
+            <div class="plan-content">
+              <div class="plan-title">🟢 NO tomar nuevas deudas en 2026</div>
+              <div class="plan-desc">Con el 55%+ del ingreso comprometido en deudas, cualquier nueva obligación desequilibra el flujo. Excepción: refinanciar una deuda existente a menor tasa (ej. Lulo Bank al 20% EA es cara — buscar opción más barata).</div>
+            </div>
+          </div>
+          <div class="plan-step">
+            <div class="plan-num low">8</div>
+            <div class="plan-content">
+              <div class="plan-title">🔵 2027: Lulo Bank + Finandina 1385 se liquidan → $1.2M/mes libres</div>
+              <div class="plan-desc">Proyección 2027: Lulo Bank (~jul 2027) + Finandina 1385 (~jul 2027) terminan. Flujo libre sube de $858K a ~$2.1M/mes. En ese punto atacar SUFI o Banco Occidente con prepago para acortar plazo.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// --- DATA ---
+const MESES = ['Mayo','Junio','Julio','Agosto','Sep.','Oct.','Nov.','Dic.'];
+const rappiA = [6294386, 8200853, 10164514, 12187084, 14270332, 16416077, 18626194, 20902615];
+const rappiB = [4076751, 3699054, 3310026, 2909326, 2496606, 2071504, 1633649, 1182659];
+
+const saldoInicio = [2452204,1842238,1232272,622306,95884,-430538,-956960,-1483382];
+const saldoFin   = [1842238,1232272,622306,95884,-430538,-956960,-1483382,-2009804];
+
+const deudas = [
+  {name:'SUFI (Bancol.)',  saldo:134652211, cuota:3337391, tasa:0.12},
+  {name:'Banco Occidente', saldo:101637350, cuota:2138720, tasa:0.0938},
+  {name:'Finandina 1385',  saldo:10448488,  cuota:707771,  tasa:0.2551},
+  {name:'Finandina TC*1438',saldo:9890286,  cuota:386173,  tasa:0.2666},
+  {name:'Lulo Bank',       saldo:7115497,   cuota:538107,  tasa:0.20},
+  {name:'RappiCard *0910', saldo:4898564,   cuota:1548624, tasa:0.26},
+  {name:'ADDI BNPL',       saldo:250633,    cuota:83544,   tasa:0},
+];
+
+const proy20m = [
+  {mes:'Mayo 2026',  ing:15796516, gas:6600323, cuota:6805533, sup:2390660, acum:4972486},
+  {mes:'Jun 2026',   ing:15796516, gas:6600323, cuota:6805533, sup:2390660, acum:7363146},
+  {mes:'Jul 2026',   ing:15796516, gas:6600323, cuota:6805533, sup:2390660, acum:9753806},
+  {mes:'Ago 2026',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:12228010},
+  {mes:'Sep 2026',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:14702214},
+  {mes:'Oct 2026',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:17176418},
+  {mes:'Nov 2026',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:19650622},
+  {mes:'Dic 2026',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:22124826},
+  {mes:'Ene 2027',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:24599030},
+  {mes:'Feb 2027',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:27073234},
+  {mes:'Mar 2027',   ing:15796516, gas:6600323, cuota:6721989, sup:2474204, acum:29547438},
+  {mes:'Abr 2027',   ing:15796516, gas:6600323, cuota:6014218, sup:3181975, acum:32729413},
+];
+
+function fmt(n){ return '$'+Math.abs(Math.round(n)).toLocaleString('es-CO'); }
+function pct(n){ return (n/15796516*100).toFixed(1)+'%'; }
+
+// Navigation
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const titles = {dashboard:'Dashboard General',deudas:'Compromisos Bancarios',gastos:'Egresos Mensuales',
+    suscripciones:'Suscripciones Digitales',movimientos:'Movimientos — Bancolombia Mar–Abr 2026',
+    proyeccion:'Proyección 2026',escenario20m:'Escenario Venta Carro $20M',recomendaciones:'Plan de Acción Financiero'};
+  document.getElementById('page-title').textContent = titles[id]||id;
+  if(id==='escenario20m'){ document.getElementById('flujo-badge').textContent='✅ +$1,532K/mes si se ejecuta'; document.getElementById('flujo-badge').className='badge ok'; }
+  else { document.getElementById('flujo-badge').textContent='⚠️ Déficit -$526K/mes'; document.getElementById('flujo-badge').className='badge deficit'; }
+}
+
+// --- CHARTS ---
+const COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
+const opts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+
+// 1. Ingresos vs Egresos bar
+new Chart(document.getElementById('chartInvE'),{
+  type:'bar',
+  data:{labels:['Ingreso Neto','Egresos Fijos','Déficit'],
+    datasets:[{data:[15796516,16322938,526422],
+      backgroundColor:['#22c55e','#ef4444','#f97316'],borderRadius:8}]},
+  options:{...opts,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'#f1f5f9'}}}}
+});
+
+// 2. Egresos donut
+new Chart(document.getElementById('chartEgresosDonut'),{
+  type:'doughnut',
+  data:{labels:['Arriendo','Deudas','Doméstico+Symplifica','Internet+Celular','Variables','Educación hijos'],
+    datasets:[{data:[2969815,8656786,2400000,251137,1000000,630000],
+      backgroundColor:['#3b82f6','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#22c55e'],
+      borderWidth:0,hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'right',labels:{font:{size:11},boxWidth:12}}}}
+});
+
+// 3. Deuda saldos
+new Chart(document.getElementById('chartDeudaSaldos'),{
+  type:'bar',
+  data:{labels:deudas.map(d=>d.name),
+    datasets:[{label:'Saldo',data:deudas.map(d=>d.saldo),
+      backgroundColor:COLORS,borderRadius:6}]},
+  options:{...opts,indexAxis:'y',scales:{x:{ticks:{callback:v=>fmt(v)},grid:{color:'#f1f5f9'}}}}
+});
+
+// 4. Costo mensual en intereses
+new Chart(document.getElementById('chartDeudaCosto'),{
+  type:'bar',
+  data:{labels:deudas.map(d=>d.name),
+    datasets:[{label:'Costo intereses/mes',data:deudas.map(d=>Math.round(d.saldo*Math.pow(1+d.tasa,1/12)-d.saldo)),
+      backgroundColor:deudas.map(d=>d.tasa>0.25?'#ef4444':d.tasa>0.15?'#f59e0b':'#22c55e'),borderRadius:6}]},
+  options:{...opts,indexAxis:'y',scales:{x:{ticks:{callback:v=>fmt(v)},grid:{color:'#f1f5f9'}}}}
+});
+
+// 5. Gastos bar
+new Chart(document.getElementById('chartGastosBar'),{
+  type:'bar',
+  data:{labels:['Deudas','Arriendo','Doméstico\n+Symplifica','SUFI','Banco\nOcc.','RappiCard'],
+    datasets:[{data:[8656786,2969815,2400000,3337391,2138720,1548624],
+      backgroundColor:['#ef

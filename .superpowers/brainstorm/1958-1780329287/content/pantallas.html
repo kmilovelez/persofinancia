@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PersoFinancIA — Pantallas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; padding: 24px; }
+  h1 { font-size: 1.3em; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .sub { color: #94a3b8; font-size: 0.88em; margin-bottom: 24px; }
+
+  .screens-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 32px; }
+
+  .screen-wrap { text-align: center; }
+  .tab-label { font-size: 0.78em; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+  .tab-sub { font-size: 0.65em; color: #64748b; margin-bottom: 10px; }
+
+  /* Phone */
+  .phone { width: 100%; max-width: 140px; margin: 0 auto 10px; background: #0f172a; border-radius: 20px; border: 2px solid #334155; overflow: hidden; padding: 6px 5px 0; }
+  .phone-screen { background: #1e293b; border-radius: 14px; overflow: hidden; min-height: 240px; display: flex; flex-direction: column; }
+  .status-bar { background: #0f172a; padding: 4px 8px 2px; display: flex; justify-content: space-between; font-size: 0.42em; color: #475569; flex-shrink: 0; }
+  .top-bar { background: #0f172a; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid #1e293b; }
+  .top-bar-title { font-size: 0.6em; font-weight: 700; color: #f1f5f9; }
+  .top-bar-action { font-size: 0.5em; color: #60a5fa; }
+  .screen-body { flex: 1; padding: 6px; overflow: hidden; }
+
+  /* KPI cards */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-bottom: 4px; }
+  .kpi { background: #0f172a; border-radius: 5px; padding: 4px 5px; }
+  .kpi-l { font-size: 0.38em; color: #64748b; }
+  .kpi-v { font-size: 0.55em; font-weight: 700; }
+  .green { color: #4ade80; }
+  .red { color: #f87171; }
+  .yellow { color: #fbbf24; }
+  .blue { color: #60a5fa; }
+
+  .mini-chart { background: #0f172a; border-radius: 5px; height: 32px; margin-bottom: 4px; display: flex; align-items: flex-end; padding: 4px; gap: 2px; }
+  .bar { border-radius: 2px 2px 0 0; flex: 1; }
+
+  .alert-card { background: #422006; border: 1px solid #92400e; border-radius: 5px; padding: 4px 5px; margin-bottom: 3px; }
+  .alert-card .al { font-size: 0.38em; color: #fbbf24; font-weight: 600; }
+  .alert-card .am { font-size: 0.38em; color: #d97706; }
+
+  /* Movimientos */
+  .search-bar { background: #0f172a; border-radius: 5px; padding: 4px 6px; font-size: 0.42em; color: #475569; margin-bottom: 4px; display: flex; align-items: center; gap: 3px; }
+  .filters { display: flex; gap: 2px; margin-bottom: 4px; flex-wrap: wrap; }
+  .chip { background: #1e293b; border: 1px solid #334155; border-radius: 10px; font-size: 0.38em; padding: 2px 5px; color: #94a3b8; }
+  .chip.active { background: #1d4ed8; border-color: #3b82f6; color: #bfdbfe; }
+  .mov-item { background: #0f172a; border-radius: 5px; padding: 4px 5px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
+  .mov-left { flex: 1; }
+  .mov-desc { font-size: 0.4em; font-weight: 600; color: #f1f5f9; }
+  .mov-cat { font-size: 0.36em; color: #64748b; }
+  .mov-right { text-align: right; }
+  .mov-amount { font-size: 0.42em; font-weight: 700; }
+  .mov-date { font-size: 0.33em; color: #475569; }
+  .fab { position: absolute; bottom: 30px; right: 8px; width: 22px; height: 22px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: white; box-shadow: 0 2px 8px rgba(59,130,246,0.5); }
+
+  /* Chat */
+  .chat-area { flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .msg { border-radius: 8px; padding: 4px 6px; max-width: 85%; font-size: 0.4em; line-height: 1.4; }
+  .msg.user { background: #1d4ed8; color: #dbeafe; align-self: flex-end; }
+  .msg.ai { background: #1e293b; border: 1px solid #334155; color: #cbd5e1; align-self: flex-start; }
+  .msg.ai .ai-badge { font-size: 0.8em; color: #c084fc; font-weight: 700; display: block; margin-bottom: 2px; }
+  .chat-input { background: #0f172a; border-top: 1px solid #1e293b; padding: 5px 6px; display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+  .chat-field { flex: 1; background: #1e293b; border-radius: 10px; padding: 3px 6px; font-size: 0.4em; color: #475569; }
+  .chat-send { width: 18px; height: 18px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.55em; flex-shrink: 0; }
+
+  /* Analítica */
+  .section-tabs { display: flex; gap: 2px; margin-bottom: 4px; overflow-x: auto; }
+  .s-tab { font-size: 0.36em; padding: 2px 5px; border-radius: 10px; color: #64748b; white-space: nowrap; }
+  .s-tab.active { background: #1d4ed8; color: #bfdbfe; }
+  .donut-mock { width: 40px; height: 40px; border-radius: 50%; background: conic-gradient(#3b82f6 0% 35%, #4ade80 35% 60%, #f87171 60% 80%, #fbbf24 80% 100%); margin: 6px auto; }
+  .legend { display: flex; flex-direction: column; gap: 2px; }
+  .leg-item { display: flex; align-items: center; gap: 3px; font-size: 0.36em; color: #94a3b8; }
+  .leg-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Config */
+  .config-section { margin-bottom: 6px; }
+  .config-title { font-size: 0.38em; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; padding: 2px 0 3px; }
+  .config-item { background: #0f172a; border-radius: 5px; padding: 4px 6px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
+  .config-item-label { font-size: 0.4em; color: #f1f5f9; }
+  .config-item-sub { font-size: 0.34em; color: #64748b; }
+  .config-arrow { font-size: 0.5em; color: #334155; }
+  .toggle { width: 18px; height: 10px; background: #15803d; border-radius: 10px; position: relative; }
+  .toggle::after { content: ''; position: absolute; right: 1px; top: 1px; width: 8px; height: 8px; background: white; border-radius: 50%; }
+  .toggle.off { background: #334155; }
+  .toggle.off::after { right: auto; left: 1px; }
+
+  /* Bottom nav bar shared */
+  .bottom-nav { background: #0f172a; padding: 4px 6px 6px; display: flex; justify-content: space-around; border-top: 1px solid #1e293b; flex-shrink: 0; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .nav-icon { font-size: 0.75em; }
+  .nav-label { font-size: 0.32em; color: #475569; }
+  .nav-item.active .nav-label { color: #3b82f6; }
+
+  /* Features list */
+  .features { text-align: left; }
+  .feat { font-size: 0.7em; color: #94a3b8; line-height: 1.8; padding-left: 12px; position: relative; }
+  .feat::before { content: '→'; position: absolute; left: 0; color: #60a5fa; }
+  .feat.new::before { content: '★'; color: #fbbf24; }
+</style>
+</head>
+<body>
+
+<h1>Las 5 pantallas principales</h1>
+<p class="sub">Mockups de cada tab · ★ = funcionalidad nueva respecto a la app actual</p>
+
+<div class="screens-grid">
+
+  <!-- TAB 1: INICIO -->
+  <div class="screen-wrap">
+    <div class="tab-label">🏠 Inicio</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+        <div class="top-bar">
+          <span class="top-bar-title">Buenos días, Juan 👋</span>
+          <span class="top-bar-action">🔔2</span>
+        </div>
+        <div class="screen-body">
+          <div class="kpi-grid">
+            <div class="kpi"><div class="kpi-l">Ingresos</div><div class="kpi-v green">$15.8M</div></div>
+            <div class="kpi"><div class="kpi-l">Gastos</div><div class="kpi-v red">$16.3M</div></div>
+            <div class="kpi"><div class="kpi-l">Balance</div><div class="kpi-v red">-$526K</div></div>
+            <div class="kpi"><div class="kpi-l">Ahorro</div><div class="kpi-v yellow">-3.3%</div></div>
+          </div>
+          <div class="mini-chart">
+            <div class="bar" style="height:60%;background:#4ade80"></div>
+            <div class="bar" style="height:70%;background:#4ade80"></div>
+            <div class="bar" style="height:55%;background:#f87171"></div>
+            <div class="bar" style="height:80%;background:#4ade80"></div>
+            <div class="bar" style="height:65%;background:#f87171"></div>
+            <div class="bar" style="height:72%;background:#4ade80"></div>
+          </div>
+          <div class="alert-card">
+            <div class="al">⚠️ RappiCard en espiral</div>
+            <div class="am">Crece $16M si no pagas</div>
+          </div>
+          <div class="alert-card" style="background:#0c1a2e;border-color:#1d4ed8">
+            <div class="al" style="color:#60a5fa">💡 Sugerencia IA</div>
+            <div class="am" style="color:#3b82f6">Pagaste 18% más en comida</div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label" style="color:#3b82f6">Inicio</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><div class="nav-label">Movs</div></div>
+          <div class="nav-item"><div class="nav-icon">✦</div><div class="nav-label">Chat</div></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><div class="nav-label">Análisis</div></div>
+          <div class="nav-item"><div class="nav-icon">⚙️</div><div class="nav-label">Config</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="features">
+      <div class="feat">KPIs del mes actual</div>
+      <div class="feat">Gráfica de flujo</div>
+      <div class="feat">Alertas críticas</div>
+      <div class="feat new">Sugerencias IA proactivas</div>
+      <div class="feat new">Saludo personalizado</div>
+    </div>
+  </div>
+
+  <!-- TAB 2: MOVIMIENTOS -->
+  <div class="screen-wrap">
+    <div class="tab-label">📋 Movimientos</div>
+    <div class="phone" style="position:relative">
+      <div class="phone-screen">
+        <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+        <div class="top-bar">
+          <span class="top-bar-title">Movimientos</span>
+          <span class="top-bar-action">Filtrar</span>
+        </div>
+        <div class="screen-body">
+          <div class="search-bar">🔍 Buscar movimiento...</div>
+          <div class="filters">
+            <div class="chip active">Todos</div>
+            <div class="chip">Ingresos</div>
+            <div class="chip">Gastos</div>
+            <div class="chip">Deuda</div>
+          </div>
+          <div class="mov-item">
+            <div class="mov-left">
+              <div class="mov-desc">RAPPI</div>
+              <div class="mov-cat">🍕 Domicilios</div>
+            </div>
+            <div class="mov-right">
+              <div class="mov-amount red">-$35K</div>
+              <div class="mov-date">31 May</div>
+            </div>
+          </div>
+          <div class="mov-item">
+            <div class="mov-left">
+              <div class="mov-desc">Nómina Matec</div>
+              <div class="mov-cat">💼 Ingreso</div>
+            </div>
+            <div class="mov-right">
+              <div class="mov-amount green">+$7.9M</div>
+              <div class="mov-date">30 May</div>
+            </div>
+          </div>
+          <div class="mov-item">
+            <div class="mov-left">
+              <div class="mov-desc">NETFLIX</div>
+              <div class="mov-cat" style="color:#fbbf24">⚡ Sin regla</div>
+            </div>
+            <div class="mov-right">
+              <div class="mov-amount red">-$25K</div>
+              <div class="mov-date">29 May</div>
+            </div>
+          </div>
+          <div class="mov-item">
+            <div class="mov-left">
+              <div class="mov-desc">Efectivo mercado</div>
+              <div class="mov-cat" style="color:#c084fc">✋ Manual</div>
+            </div>
+            <div class="mov-right">
+              <div class="mov-amount red">-$80K</div>
+              <div class="mov-date">28 May</div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+          <div class="nav-item active"><div class="nav-icon">📋</div><div class="nav-label" style="color:#3b82f6">Movs</div></div>
+          <div class="nav-item"><div class="nav-icon">✦</div><div class="nav-label">Chat</div></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><div class="nav-label">Análisis</div></div>
+          <div class="nav-item"><div class="nav-icon">⚙️</div><div class="nav-label">Config</div></div>
+        </div>
+      </div>
+      <div class="fab">+</div>
+    </div>
+    <div class="features">
+      <div class="feat">Lista con búsqueda y filtros</div>
+      <div class="feat">Tap para editar categoría</div>
+      <div class="feat new">+ Botón crear manual</div>
+      <div class="feat new">Swipe para editar/borrar</div>
+      <div class="feat new">Indicador "Sin regla" en amarillo</div>
+      <div class="feat new">Indicador "Manual" en morado</div>
+    </div>
+  </div>
+
+  <!-- TAB 3: CHAT IA -->
+  <div class="screen-wrap">
+    <div class="tab-label">✦ Chat IA</div>
+    <div class="phone">
+      <div class="phone-screen" style="display:flex;flex-direction:column;">
+        <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+        <div class="top-bar">
+          <span class="top-bar-title">✦ PersoFinancIA</span>
+          <span class="top-bar-action">Historial</span>
+        </div>
+        <div class="chat-area">
+          <div class="msg ai"><span class="ai-badge">PersoFinancIA</span>Hola Juan. ¿En qué te ayudo hoy? Puedo analizar tus gastos, simular escenarios o revisar tu deuda.</div>
+          <div class="msg user">¿Cuánto gasté en comida este mes?</div>
+          <div class="msg ai"><span class="ai-badge">PersoFinancIA</span>En mayo gastaste <strong>$387K</strong> en comida — un 18% más que abril ($328K). Los mayores gastos fueron Rappi ($210K) y Juan Valdez ($48K).</div>
+          <div class="msg user">¿Qué pasa si pago $2M a RappiCard?</div>
+          <div class="msg ai"><span class="ai-badge">PersoFinancIA</span>Si pagas $2M hoy, tu saldo bajaría a <strong>$2.9M</strong> y ahorrarías ~$43K/mes en intereses...</div>
+        </div>
+        <div class="chat-input">
+          <div class="chat-field">Escribe una pregunta...</div>
+          <div class="chat-send">↑</div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><div class="nav-label">Movs</div></div>
+          <div class="nav-item active"><div class="nav-icon">✦</div><div class="nav-label" style="color:#3b82f6">Chat</div></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><div class="nav-label">Análisis</div></div>
+          <div class="nav-item"><div class="nav-icon">⚙️</div><div class="nav-label">Config</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="features">
+      <div class="feat new">Chat con Claude (Sonnet)</div>
+      <div class="feat new">Contexto de tus datos reales</div>
+      <div class="feat new">Simulación de escenarios</div>
+      <div class="feat new">Historial de conversaciones</div>
+      <div class="feat new">Sugerencias rápidas</div>
+    </div>
+  </div>
+
+  <!-- TAB 4: ANALÍTICA -->
+  <div class="screen-wrap">
+    <div class="tab-label">📊 Analítica</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+        <div class="top-bar">
+          <span class="top-bar-title">Analítica</span>
+          <span class="top-bar-action">May 2026 ▾</span>
+        </div>
+        <div class="screen-body">
+          <div class="section-tabs">
+            <div class="s-tab active">Gastos</div>
+            <div class="s-tab">Ingresos</div>
+            <div class="s-tab">Deuda</div>
+            <div class="s-tab">Flujo</div>
+            <div class="s-tab">Proyección</div>
+          </div>
+          <div class="donut-mock"></div>
+          <div class="legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#3b82f6"></div>Deuda 35%</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#4ade80"></div>Fijo 25%</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#f87171"></div>Variable 20%</div>
+            <div class="leg-item"><div class="leg-dot" style="background:#fbbf24"></div>Suscripciones 20%</div>
+          </div>
+          <div class="mini-chart" style="margin-top:5px">
+            <div class="bar" style="height:50%;background:#3b82f688"></div>
+            <div class="bar" style="height:70%;background:#3b82f688"></div>
+            <div class="bar" style="height:60%;background:#3b82f688"></div>
+            <div class="bar" style="height:85%;background:#3b82f6"></div>
+            <div class="bar" style="height:55%;background:#3b82f688"></div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><div class="nav-label">Movs</div></div>
+          <div class="nav-item"><div class="nav-icon">✦</div><div class="nav-label">Chat</div></div>
+          <div class="nav-item active"><div class="nav-icon">📊</div><div class="nav-label" style="color:#3b82f6">Análisis</div></div>
+          <div class="nav-item"><div class="nav-icon">⚙️</div><div class="nav-label">Config</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="features">
+      <div class="feat">Gastos / Ingresos / Deuda</div>
+      <div class="feat">Flujo de caja</div>
+      <div class="feat">Proyección 3 meses</div>
+      <div class="feat new">Selector de mes/periodo</div>
+      <div class="feat new">Comparativo vs mes anterior</div>
+    </div>
+  </div>
+
+  <!-- TAB 5: CONFIG -->
+  <div class="screen-wrap">
+    <div class="tab-label">⚙️ Config</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+        <div class="top-bar">
+          <span class="top-bar-title">Configuración</span>
+        </div>
+        <div class="screen-body">
+          <div class="config-section">
+            <div class="config-title">Bancos conectados</div>
+            <div class="config-item">
+              <div><div class="config-item-label">Bancolombia</div><div class="config-item-sub">Activo · ayer: 3 movs</div></div>
+              <div class="toggle"></div>
+            </div>
+            <div class="config-item">
+              <div><div class="config-item-label">Nequi</div><div class="config-item-sub">Activo · ayer: 1 mov</div></div>
+              <div class="toggle"></div>
+            </div>
+            <div class="config-item">
+              <div><div class="config-item-label">RappiCard</div><div class="config-item-sub">Activo</div></div>
+              <div class="toggle"></div>
+            </div>
+            <div class="config-item" style="border:1px dashed #334155;background:transparent">
+              <div><div class="config-item-label" style="color:#60a5fa">+ Agregar banco</div></div>
+              <div class="config-arrow">→</div>
+            </div>
+          </div>
+          <div class="config-section">
+            <div class="config-title">Categorías y Reglas</div>
+            <div class="config-item">
+              <div><div class="config-item-label">Mis categorías</div><div class="config-item-sub">12 categorías</div></div>
+              <div class="config-arrow">→</div>
+            </div>
+            <div class="config-item">
+              <div><div class="config-item-label">Reglas automáticas</div><div class="config-item-sub">8 reglas activas</div></div>
+              <div class="config-arrow">→</div>
+            </div>
+          </div>
+          <div class="config-section">
+            <div class="config-title">Datos</div>
+            <div class="config-item">
+              <div><div class="config-item-label">Importar CSV</div></div>
+              <div class="config-arrow">→</div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Inicio</div></div>
+          <div class="nav-item"><div class="nav-icon">📋</div><div class="nav-label">Movs</div></div>
+          <div class="nav-item"><div class="nav-icon">✦</div><div class="nav-label">Chat</div></div>
+          <div class="nav-item"><div class="nav-icon">📊</div><div class="nav-label">Análisis</div></div>
+          <div class="nav-item active"><div class="nav-icon">⚙️</div><div class="nav-label" style="color:#3b82f6">Config</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="features">
+      <div class="feat new">Gestión de bancos (toggle)</div>
+      <div class="feat new">Agregar banco nuevo</div>
+      <div class="feat new">Mis categorías</div>
+      <div class="feat new">Reglas automáticas</div>
+      <div class="feat new">Importar CSV</div>
+    </div>
+  </div>
+
+</div>
+
+<p style="color:#475569;font-size:0.78em;text-align:center">★ = funcionalidad nueva · → = migrada de la app actual · Mockups aproximados — el diseño final usará shadcn/ui + Tailwind</p>
+
+</body>
+</html>

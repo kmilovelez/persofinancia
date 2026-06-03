@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PersoFinancIA — Categorización e Ingesta</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; padding: 24px; }
+  h1 { font-size: 1.3em; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .sub { color: #94a3b8; font-size: 0.88em; margin-bottom: 28px; }
+
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 0.72em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #60a5fa; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #1e293b; }
+
+  /* ── FLUJO DE CATEGORIZACIÓN ── */
+  .flow-row { display: flex; align-items: stretch; gap: 0; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
+  .flow-node { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 12px 14px; flex: 1; min-width: 140px; position: relative; }
+  .flow-node.priority-1 { border-color: #3b82f6; background: #0f172a; }
+  .flow-node.priority-2 { border-color: #a855f7; background: #1a0f2e; }
+  .flow-node.priority-3 { border-color: #22c55e; background: #0a1f0f; }
+  .flow-node.priority-4 { border-color: #f59e0b; background: #1c1300; }
+  .node-num { font-size: 0.62em; font-weight: 700; margin-bottom: 4px; }
+  .p1 { color: #60a5fa; }
+  .p2 { color: #c084fc; }
+  .p3 { color: #4ade80; }
+  .p4 { color: #fbbf24; }
+  .node-title { font-size: 0.8em; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+  .node-desc { font-size: 0.7em; color: #94a3b8; line-height: 1.5; }
+  .node-badge { display: inline-block; font-size: 0.6em; padding: 1px 6px; border-radius: 8px; margin-top: 5px; font-weight: 600; }
+  .badge-blue { background: #1d4ed8; color: #bfdbfe; }
+  .badge-purple { background: #7e22ce; color: #e9d5ff; }
+  .badge-green { background: #15803d; color: #bbf7d0; }
+  .badge-yellow { background: #92400e; color: #fef3c7; }
+  .arrow { display: flex; align-items: center; justify-content: center; color: #334155; font-size: 1.1em; flex-shrink: 0; padding: 0 2px; }
+
+  /* ── PARSERS POR BANCO ── */
+  .banks-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+  .bank-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 12px; }
+  .bank-name { font-size: 0.8em; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .bank-status { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .exists { background: #4ade80; }
+  .new { background: #fbbf24; }
+  .bank-from { font-size: 0.62em; color: #64748b; margin-bottom: 4px; font-family: monospace; }
+  .bank-verbs { font-size: 0.62em; color: #94a3b8; line-height: 1.6; }
+  .bank-label { font-size: 0.55em; font-weight: 600; padding: 1px 5px; border-radius: 6px; }
+  .label-exists { background: #14532d; color: #86efac; }
+  .label-new { background: #78350f; color: #fde68a; }
+
+  /* ── PANTALLAS REGLAS + BANCO ── */
+  .screens-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .phone { width: 100%; max-width: 180px; margin: 0 auto 12px; background: #0f172a; border-radius: 22px; border: 2px solid #334155; overflow: hidden; padding: 7px 6px 0; }
+  .phone-screen { background: #1e293b; border-radius: 16px; overflow: hidden; min-height: 320px; display: flex; flex-direction: column; }
+  .status-bar { background: #0f172a; padding: 4px 8px 2px; display: flex; justify-content: space-between; font-size: 0.42em; color: #475569; flex-shrink: 0; }
+  .top-bar { background: #0f172a; padding: 7px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid #1e293b; }
+  .top-bar-title { font-size: 0.62em; font-weight: 700; color: #f1f5f9; }
+  .top-bar-action { font-size: 0.52em; color: #60a5fa; }
+  .screen-body { flex: 1; padding: 8px; overflow: hidden; }
+
+  .screen-label { text-align: center; font-size: 0.82em; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+  .screen-sub { text-align: center; font-size: 0.7em; color: #64748b; margin-bottom: 12px; }
+
+  /* Rules screen */
+  .rule-item { background: #0f172a; border-radius: 7px; padding: 7px 9px; margin-bottom: 5px; border-left: 3px solid #3b82f6; }
+  .rule-item.ai { border-left-color: #a855f7; }
+  .rule-condition { font-size: 0.44em; color: #94a3b8; line-height: 1.5; }
+  .rule-condition strong { color: #f1f5f9; }
+  .rule-result { font-size: 0.44em; margin-top: 3px; }
+  .rule-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 3px; }
+  .rule-origin { font-size: 0.38em; padding: 1px 4px; border-radius: 5px; font-weight: 600; }
+  .origin-manual { background: #1d4ed8; color: #bfdbfe; }
+  .origin-ai { background: #7e22ce; color: #e9d5ff; }
+  .rule-toggle { width: 16px; height: 9px; background: #15803d; border-radius: 10px; position: relative; flex-shrink: 0; }
+  .rule-toggle::after { content: ''; position: absolute; right: 1px; top: 1px; width: 7px; height: 7px; background: white; border-radius: 50%; }
+
+  /* Add bank screen */
+  .form-row { margin-bottom: 6px; }
+  .form-label { font-size: 0.4em; color: #64748b; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .form-input { background: #0f172a; border: 1px solid #334155; border-radius: 5px; padding: 4px 7px; font-size: 0.44em; color: #f1f5f9; width: 100%; }
+  .form-input.highlight { border-color: #3b82f6; }
+  .form-hint { font-size: 0.36em; color: #475569; margin-top: 2px; }
+  .form-select { background: #0f172a; border: 1px solid #334155; border-radius: 5px; padding: 4px 7px; font-size: 0.42em; color: #94a3b8; width: 100%; }
+  .btn-primary { background: #3b82f6; color: white; border-radius: 6px; padding: 5px; font-size: 0.44em; font-weight: 700; text-align: center; margin-top: 8px; }
+
+  .feat { font-size: 0.72em; color: #94a3b8; line-height: 1.9; padding-left: 12px; position: relative; }
+  .feat::before { content: '→'; position: absolute; left: 0; color: #60a5fa; }
+</style>
+</head>
+<body>
+
+<h1>Motor de Categorización + Ingesta de Emails</h1>
+<p class="sub">Cómo funciona por dentro — Fase 2</p>
+
+<!-- SECCIÓN 1: FLUJO CATEGORIZACIÓN -->
+<div class="section">
+  <div class="section-title">Motor de categorización — capas en orden de prioridad</div>
+  <div class="flow-row">
+    <div class="flow-node priority-1">
+      <div class="node-num p1">PRIORIDAD 1</div>
+      <div class="node-title">Reglas manuales</div>
+      <div class="node-desc">Las que tú creaste. Condición + resultado. Se evalúan en orden de prioridad (número).<br><br>Ejemplo: <em>descripcion contiene "RAPPI" → Domicilios/Comida</em></div>
+      <span class="node-badge badge-blue">Determinístico</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-node priority-2">
+      <div class="node-num p2">PRIORIDAD 2</div>
+      <div class="node-title">Reglas sugeridas por IA</div>
+      <div class="node-desc">Reglas que Claude generó automáticamente cuando corregiste una categoría. Tienen menor prioridad que las manuales pero más que el fallback libre.</div>
+      <span class="node-badge badge-purple">Auto-aprendizaje</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-node priority-3">
+      <div class="node-num p3">PRIORIDAD 3</div>
+      <div class="node-title">Claude fallback</div>
+      <div class="node-desc">Ninguna regla hizo match. Claude analiza descripción + tus últimas 30 transacciones similares → devuelve categoría + confianza (0–100%).</div>
+      <span class="node-badge badge-green">Alta confianza → auto</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-node priority-4">
+      <div class="node-num p4">PRIORIDAD 4</div>
+      <div class="node-title">Pendiente revisión</div>
+      <div class="node-desc">Claude tuvo baja confianza (&lt;70%). El movimiento se marca en amarillo en la lista. Tú lo categorías manualmente y opcionalmente creas una regla.</div>
+      <span class="node-badge badge-yellow">Requiere tu atención</span>
+    </div>
+  </div>
+</div>
+
+<!-- SECCIÓN 2: PARSERS -->
+<div class="section">
+  <div class="section-title">Parsers de email — uno por banco</div>
+  <div class="banks-grid">
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status exists"></span>Bancolombia <span class="bank-label label-exists">Existe</span></div>
+      <div class="bank-from">@bancolombia.com.co</div>
+      <div class="bank-verbs">Compraste · Transferiste · Pagaste · Recibiste · QR · Bre-B</div>
+    </div>
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status new"></span>Nequi <span class="bank-label label-new">Nuevo</span></div>
+      <div class="bank-from">@nequi.com.co</div>
+      <div class="bank-verbs">Enviaste · Recibiste · Pagaste · Recarga</div>
+    </div>
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status new"></span>RappiCard <span class="bank-label label-new">Nuevo</span></div>
+      <div class="bank-from">@rappi.com</div>
+      <div class="bank-verbs">Compra · Avance · Pago</div>
+    </div>
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status new"></span>Bco. Occidente <span class="bank-label label-new">Nuevo</span></div>
+      <div class="bank-from">@bancodeoccidente.com.co</div>
+      <div class="bank-verbs">Transacción débito · Compra TC · Transferencia</div>
+    </div>
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status new"></span>Lulobank <span class="bank-label label-new">Nuevo</span></div>
+      <div class="bank-from">@lulobank.com</div>
+      <div class="bank-verbs">Pago · Transferencia · Recarga</div>
+    </div>
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status new"></span>NU <span class="bank-label label-new">Nuevo</span></div>
+      <div class="bank-from">@nu.com.co</div>
+      <div class="bank-verbs">Compra · Pago · Transferencia</div>
+    </div>
+    <div class="bank-card">
+      <div class="bank-name"><span class="bank-status new"></span>Hapi <span class="bank-label label-new">Nuevo</span></div>
+      <div class="bank-from">@hapi.com.co</div>
+      <div class="bank-verbs">Por definir al analizar emails</div>
+    </div>
+    <div class="bank-card" style="border-style:dashed;background:transparent">
+      <div class="bank-name"><span class="bank-status" style="background:#334155"></span>Banco custom</div>
+      <div class="bank-from">Tú configuras</div>
+      <div class="bank-verbs">Remitente + verbos + regex = parser genérico</div>
+    </div>
+  </div>
+  <p style="font-size:0.75em;color:#475569">Los parsers de Nequi, RappiCard, Bco. Occidente, Lulobank, NU y Hapi se construyen en Fase 2 analizando tus emails reales para identificar el formato exacto.</p>
+</div>
+
+<!-- SECCIÓN 3: PANTALLAS UI -->
+<div class="section">
+  <div class="section-title">Pantallas de gestión — Reglas y Bancos</div>
+  <div class="screens-2col">
+
+    <!-- REGLAS -->
+    <div>
+      <div class="screen-label">Reglas de categorización</div>
+      <div class="screen-sub">Config → Reglas automáticas</div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <span class="top-bar-title">← Reglas</span>
+            <span class="top-bar-action">+ Nueva</span>
+          </div>
+          <div class="screen-body">
+            <div class="rule-item">
+              <div class="rule-condition">Si <strong>descripción</strong> contiene <strong>"RAPPI"</strong></div>
+              <div class="rule-result" style="color:#4ade80;font-size:0.44em">→ Domicilios / Comida</div>
+              <div class="rule-meta"><span class="rule-origin origin-manual">Manual</span><div class="rule-toggle"></div></div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-condition">Si <strong>descripción</strong> contiene <strong>"NETFLIX"</strong></div>
+              <div class="rule-result" style="color:#4ade80;font-size:0.44em">→ Suscripciones / Tech</div>
+              <div class="rule-meta"><span class="rule-origin origin-manual">Manual</span><div class="rule-toggle"></div></div>
+            </div>
+            <div class="rule-item ai">
+              <div class="rule-condition">Si <strong>descripción</strong> contiene <strong>"TERPEL"</strong></div>
+              <div class="rule-result" style="color:#4ade80;font-size:0.44em">→ Transporte / Gasolina</div>
+              <div class="rule-meta"><span class="rule-origin origin-ai">Sugerida IA</span><div class="rule-toggle"></div></div>
+            </div>
+            <div class="rule-item ai">
+              <div class="rule-condition">Si <strong>monto</strong> &gt; <strong>$5.000.000</strong> y flujo = <strong>out</strong></div>
+              <div class="rule-result" style="color:#fbbf24;font-size:0.44em">→ ⚠️ Marcar para revisión</div>
+              <div class="rule-meta"><span class="rule-origin origin-ai">Sugerida IA</span><div class="rule-toggle"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="feat">Crear regla: campo + operador + valor</div>
+      <div class="feat">Reordenar prioridad con drag</div>
+      <div class="feat">Activar / desactivar por toggle</div>
+      <div class="feat">Ver si es manual o sugerida por IA</div>
+      <div class="feat">Probar regla contra historial</div>
+    </div>
+
+    <!-- AGREGAR BANCO -->
+    <div>
+      <div class="screen-label">Agregar banco nuevo</div>
+      <div class="screen-sub">Config → Bancos → + Agregar</div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+          <div class="top-bar">
+            <span class="top-bar-title">← Nuevo banco</span>
+          </div>
+          <div class="screen-body">
+            <div class="form-row">
+              <div class="form-label">Nombre</div>
+              <div class="form-input highlight">Lulobank</div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">Remitente Gmail</div>
+              <div class="form-input">@lulobank.com</div>
+              <div class="form-hint">Ej: notificaciones@bancolombia.com.co</div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">Gmail query</div>
+              <div class="form-input" style="font-size:0.38em;color:#94a3b8">from:lulobank.com has:$</div>
+              <div class="form-hint">Igual a la búsqueda de Gmail</div>
+            </div>
+            <div class="form-row">
+              <div class="form-label">Tipo de parser</div>
+              <div class="form-select">Automático (Claude analiza emails)</div>
+            </div>
+            <div class="form-row" style="margin-top:4px">
+              <div style="display:flex;align-items:center;gap:5px">
+                <div class="rule-toggle"></div>
+                <span style="font-size:0.42em;color:#94a3b8">Activo desde hoy</span>
+              </div>
+            </div>
+            <div class="btn-primary">Guardar banco</div>
+          </div>
+        </div>
+      </div>
+      <div class="feat">Nombre + remitente + query Gmail</div>
+      <div class="feat">Parser auto: Claude lee 5 emails de ejemplo y deduce el formato</div>
+      <div class="feat">Activar/desactivar sin borrar</div>
+      <div class="feat">Probar parser con email real</div>
+    </div>
+
+  </div>
+</div>
+
+<p style="color:#475569;font-size:0.78em;text-align:center">PersoFinancIA · Sección 3 — Motor de categorización + Ingesta · v1.0</p>
+
+</body>
+</html>

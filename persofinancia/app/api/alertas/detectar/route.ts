@@ -187,6 +187,69 @@ async function detectarParaUser(
     }
   }
 
+  // ─────────── REGLA 5: Pago próximo (compromisos bancarios) ───────────
+  const { data: compromisos } = await supabase
+    .from('compromisos')
+    .select('id, entidad, producto, cuota_mensual, dia_pago, estado')
+    .eq('user_id', userId)
+    .in('estado', ['al_dia','mora','congelada'])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const compList = (compromisos ?? []) as Array<any>
+  for (const c of compList) {
+    if (!c.dia_pago) continue
+    const todayDate = today.getDate()
+    const diaPago = Number(c.dia_pago)
+    // Días hasta el próximo pago (en este mes o el siguiente)
+    let diasHasta: number
+    if (diaPago >= todayDate) {
+      diasHasta = diaPago - todayDate
+    } else {
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+      diasHasta = (lastDay - todayDate) + diaPago
+    }
+    if (diasHasta <= 3 && diasHasta >= 0) {
+      const sev: 'info' | 'warning' | 'danger' = diasHasta <= 1 ? 'danger' : diasHasta <= 2 ? 'warning' : 'info'
+      const cuotaFmt = `$${Math.round(Number(c.cuota_mensual)).toLocaleString('es-CO')}`
+      alerts.push({
+        user_id: userId,
+        tipo: 'pago_proximo',
+        severidad: sev,
+        titulo: `${diasHasta === 0 ? '⏰ HOY' : `Próximo pago en ${diasHasta} día${diasHasta === 1 ? '' : 's'}`}: ${c.entidad}`,
+        mensaje: `${c.producto} · ${cuotaFmt} · vence día ${diaPago}`,
+        metadata: { compromiso_id: c.id, dias_hasta: diasHasta, cuota: Number(c.cuota_mensual) },
+      })
+    }
+  }
+
+  // ─────────── REGLA 6: Carga financiera del mes > 50% del ingreso ───────────
+  const totalCuotas = compList.reduce((s, c) => s + Number(c.cuota_mensual ?? 0), 0)
+  if (totalCuotas > 0) {
+    const { data: ingresosMes } = await supabase
+      .from('movimientos')
+      .select('monto')
+      .eq('user_id', userId)
+      .eq('flujo', 'in')
+      .eq('categoria', 'Nómina Matec')
+      .gte('fecha', monthStart)
+      .lte('fecha', monthEnd)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ingList = (ingresosMes ?? []) as Array<any>
+    const totalIngresoMes = ingList.reduce((s, m) => s + Number(m.monto), 0)
+    if (totalIngresoMes > 0) {
+      const pct = (totalCuotas / totalIngresoMes) * 100
+      if (pct > 50) {
+        alerts.push({
+          user_id: userId,
+          tipo: 'carga_financiera',
+          severidad: pct > 70 ? 'danger' : 'warning',
+          titulo: `Carga financiera alta: ${Math.round(pct)}% del ingreso`,
+          mensaje: `Tus cuotas mensuales ($${Math.round(totalCuotas).toLocaleString('es-CO')}) son el ${Math.round(pct)}% de tu nómina ($${Math.round(totalIngresoMes).toLocaleString('es-CO')}). Recomendado: < 35%.`,
+          metadata: { cuotas: totalCuotas, ingreso: totalIngresoMes, porcentaje: Math.round(pct) },
+        })
+      }
+    }
+  }
+
   // Dedup: don't insert alerts whose (user_id, tipo, movimiento_id) already exist
   const inserted: AlertInsert[] = []
   for (const a of alerts) {

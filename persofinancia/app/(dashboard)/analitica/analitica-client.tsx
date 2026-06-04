@@ -12,10 +12,25 @@ import { FlujoTab } from '@/components/analitica/tabs/flujo-tab'
 import { ProyeccionTab } from '@/components/analitica/tabs/proyeccion-tab'
 import { YoyTab } from '@/components/analitica/tabs/yoy-tab'
 
+interface Compromiso {
+  id: string
+  entidad: string
+  producto: string
+  tipo: string
+  saldo_actual: number
+  cuota_mensual: number
+  tasa_ea: number | null
+  dia_pago: number | null
+  cuotas_total: number | null
+  cuotas_pagadas: number | null
+  estado: string
+}
+
 interface Props {
   movimientos: Movimiento[]
   categorias: Categoria[]
   presupuestos: Presupuesto[]
+  compromisos?: Compromiso[]
   initialTab: string
 }
 
@@ -31,7 +46,7 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]['key']
 
-export function AnaliticaClient({ movimientos, categorias, presupuestos, initialTab }: Props) {
+export function AnaliticaClient({ movimientos, categorias, presupuestos, compromisos, initialTab }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -69,7 +84,7 @@ export function AnaliticaClient({ movimientos, categorias, presupuestos, initial
         {tab === 'resumen' && <ResumenTab movimientos={movimientos} categorias={categorias} />}
         {tab === 'gastos' && <GastosTab movimientos={movimientos} categorias={categorias} presupuestos={presupuestos} />}
         {tab === 'ingresos' && <IngresosTab movimientos={movimientos} />}
-        {tab === 'deuda' && <DeudaTab movimientos={movimientos} />}
+        {tab === 'deuda' && <DeudaTab movimientos={movimientos} compromisos={compromisos} />}
         {tab === 'flujo' && <FlujoTab movimientos={movimientos} />}
         {tab === 'proyeccion' && <ProyeccionTab movimientos={movimientos} />}
         {tab === 'yoy' && <YoyTab movimientos={movimientos} />}

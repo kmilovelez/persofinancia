@@ -24,17 +24,22 @@ export default async function AnaliticaPage({ searchParams }: PageProps) {
 
   const { start, end } = rangeToDates(rango, custom)
 
-  const [{ data: movs }, { data: cats }, { data: pres }] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [{ data: movs }, { data: cats }, { data: pres }, { data: comps }] = await Promise.all([
     supabase.from('movimientos').select('*').eq('user_id', user.id)
       .gte('fecha', start).lte('fecha', end)
       .order('fecha', { ascending: true }),
     supabase.from('categorias').select('*').eq('user_id', user.id),
     supabase.from('presupuestos').select('*').eq('user_id', user.id),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.from('compromisos') as any).select('*').eq('user_id', user.id).order('dia_pago'),
   ])
 
   const movimientos = (movs ?? []) as Movimiento[]
   const categorias = (cats ?? []) as Categoria[]
   const presupuestos = (pres ?? []) as Presupuesto[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const compromisos = (comps ?? []) as any[]
 
   return (
     <div className="pb-4">
@@ -51,6 +56,7 @@ export default async function AnaliticaPage({ searchParams }: PageProps) {
         movimientos={movimientos}
         categorias={categorias}
         presupuestos={presupuestos}
+        compromisos={compromisos}
         initialTab={params.tab ?? 'resumen'}
       />
     </div>

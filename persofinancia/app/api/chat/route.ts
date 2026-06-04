@@ -39,17 +39,26 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'query_movimientos',
-      description: 'Consulta movimientos del usuario con filtros. Devuelve total, conteo y los 10 más relevantes. Útil para "cuánto gasté en X" o "movimientos de Y".',
+      description: 'Consulta movimientos del usuario con filtros. Devuelve total, conteo y los 10 más relevantes. Útil para "cuánto gasté en X" o "movimientos de Y". Parámetro `grupo` filtra por categorías de un grupo: Fijo (arriendo, deuda, servicios, suscripciones, doméstico, educación), Variable (mercado, transporte, compras, etc.), Negocio (costo café), Ingreso.',
       parameters: {
         type: 'object',
         properties: {
           categoria: { type: 'string', description: 'Nombre exacto de categoría (e.g. "Transporte"). Opcional.' },
+          grupo: { type: 'string', enum: ['Fijo','Variable','Negocio','Ingreso','Ahorro'], description: 'Grupo de categorías. Usar "Fijo" para PAGOS FIJOS (arriendo, deuda, servicios, etc).' },
           fecha_desde: { type: 'string', description: 'Fecha inicio YYYY-MM-DD. Opcional.' },
           fecha_hasta: { type: 'string', description: 'Fecha fin YYYY-MM-DD. Opcional.' },
           flujo: { type: 'string', enum: ['in','out'], description: 'in=ingresos, out=gastos. Opcional.' },
           texto_descripcion: { type: 'string', description: 'Texto a buscar en descripción (ILIKE %texto%). Opcional.' },
         },
       },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_compromisos',
+      description: 'Lista los compromisos bancarios del usuario (créditos, tarjetas, préstamos). Cada uno tiene: entidad, producto, saldo_actual, cuota_mensual, dia_pago, tasa_ea, cuotas_total/pagadas, estado. Útil para "cuáles son mis deudas", "cuándo es mi próximo pago", "carga financiera total".',
+      parameters: { type: 'object', properties: {} },
     },
   },
   {
@@ -103,11 +112,22 @@ async function executeTool(
 ): Promise<unknown> {
   switch (name) {
     case 'query_movimientos': {
+      // If filtering by grupo, first resolve the list of categorias del grupo
+      let categoriasDelGrupo: string[] | null = null
+      if (args.grupo) {
+        const { data: catsRes } = await supabase
+          .from('categorias')
+          .select('nombre')
+          .eq('user_id', userId)
+          .eq('grupo', args.grupo)
+        categoriasDelGrupo = ((catsRes ?? []) as Array<{ nombre: string }>).map(c => c.nombre)
+      }
       let q = supabase
         .from('movimientos')
         .select('fecha, descripcion, monto, categoria, flujo, tipo')
         .eq('user_id', userId)
       if (args.categoria) q = q.eq('categoria', args.categoria)
+      if (categoriasDelGrupo && categoriasDelGrupo.length > 0) q = q.in('categoria', categoriasDelGrupo)
       if (args.fecha_desde) q = q.gte('fecha', args.fecha_desde)
       if (args.fecha_hasta) q = q.lte('fecha', args.fecha_hasta)
       if (args.flujo) q = q.eq('flujo', args.flujo)
@@ -189,6 +209,22 @@ async function executeTool(
         .limit(limit)
       return data ?? []
     }
+    case 'get_compromisos': {
+      const { data } = await supabase
+        .from('compromisos')
+        .select('entidad, producto, tipo, saldo_actual, cuota_mensual, tasa_ea, dia_pago, cuotas_total, cuotas_pagadas, estado, notas')
+        .eq('user_id', userId)
+        .order('dia_pago', { ascending: true })
+      const rows = (data ?? []) as Array<{ entidad: string; producto: string; tipo: string; saldo_actual: number; cuota_mensual: number; tasa_ea: number | null; dia_pago: number | null; cuotas_total: number | null; cuotas_pagadas: number | null; estado: string; notas: string | null }>
+      const totalSaldo = rows.filter(r => r.estado !== 'liquidado').reduce((s, r) => s + Number(r.saldo_actual), 0)
+      const totalCuota = rows.filter(r => r.estado !== 'liquidado').reduce((s, r) => s + Number(r.cuota_mensual), 0)
+      return {
+        count: rows.length,
+        total_saldo: totalSaldo,
+        total_cuota_mensual: totalCuota,
+        compromisos: rows,
+      }
+    }
     default:
       return { error: `Unknown tool: ${name}` }
   }
@@ -199,13 +235,26 @@ const SYSTEM_PROMPT = `Eres PersoFinancIA, asistente financiero personal del usu
 Tu trabajo: responder preguntas sobre las finanzas personales del usuario usando las herramientas disponibles. SIEMPRE usa las herramientas para obtener datos reales — nunca inventes números.
 
 Reglas:
-- Montos en COP. Formatea con separadores (ej. $1.234.567 o $1,2M para millones)
+- Montos en COP completos con puntos como separadores de miles (ej. $1.234.567). NO uses M ni K (no escribas "$1,2M" sino "$1.200.000").
 - Hoy es ${new Date().toISOString().slice(0, 10)}
 - Si el usuario dice "este mes", "mes actual" → desde el día 1 del mes en curso hasta hoy
 - Si dice "el mes pasado" → todo el mes anterior
 - Sé conciso pero útil. Si das una cifra, da contexto (ej. "vs el promedio histórico de X")
 - Si no tienes datos para responder, dilo claramente. No inventes.
-- Detecta intención: si pregunta "¿cuánto gasté?" usa query_movimientos. Si pregunta "¿en qué gasto más?" usa get_categorias.`
+
+GUÍA DE HERRAMIENTAS — qué usar según pregunta:
+- "¿cuánto gasté?", "movimientos de X" → query_movimientos
+- "¿pagos fijos?", "gastos fijos del mes" → query_movimientos con grupo='Fijo'
+- "¿en qué gasto más?" → get_categorias
+- "¿cuáles son mis deudas?", "saldo total deuda", "compromisos bancarios", "cuándo vence X" → get_compromisos
+- "¿voy bien con presupuesto?" → get_presupuestos
+- "top gastos" → get_top_gastos
+
+CONTEXTO DEL USUARIO:
+- Trabaja en CI Matec (nómina principal)
+- Tiene un negocio de café (Venta Café = ingresos, Costo Café = gastos)
+- Tiene 7 compromisos bancarios trackeados con sus cuotas y fechas de pago
+- Sus categorías están agrupadas en: Fijo (arriendo, deuda, servicios fijos), Variable (mercado, transporte, etc), Negocio (café), Ingreso, Ahorro.`
 
 export async function POST(req: Request) {
   const supabase = await getSupabaseServerClient()

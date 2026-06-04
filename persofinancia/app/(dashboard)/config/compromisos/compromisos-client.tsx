@@ -108,7 +108,7 @@ export function CompromisosClient({ initial }: Props) {
 
       {items.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm">
-          Sin compromisos. Toca "Nuevo" para agregar uno.
+          Sin compromisos. Toca &quot;Nuevo&quot; para agregar uno.
         </div>
       ) : (
         <div className="space-y-2">

@@ -582,8 +582,9 @@ serve(async (req) => {
     let unparsable = 0
 
     for (const msgId of allMessageIds) {
-      // Fetch message snippet
+      // Fetch message snippet + internalDate
       let snippet = ''
+      let emailDate: string | undefined
       try {
         const msgRes = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=metadata`,
@@ -592,6 +593,10 @@ serve(async (req) => {
         if (msgRes.ok) {
           const msgData = await msgRes.json()
           snippet = msgData.snippet ?? ''
+          // internalDate is a string of milliseconds since epoch
+          if (msgData.internalDate) {
+            emailDate = new Date(Number(msgData.internalDate)).toISOString()
+          }
         }
       } catch {
         continue
@@ -605,7 +610,7 @@ serve(async (req) => {
 
       // 2) Try regex parser (fast, free)
       if (!parsed) {
-        parsed = parser.parse(snippet, msgId)
+        parsed = parser.parse(snippet, msgId, emailDate)
         if (parsed) {
           // Save regex-parsed result to cache too (helps future RAG few-shot)
           await saveExample(supabase, banco.nombre, snippet, parsed, 'regex')

@@ -12,5 +12,7 @@ export interface ParsedTransaction {
 }
 
 export interface BankParser {
-  parse(snippet: string, messageId: string): ParsedTransaction | null
+  // emailDate: ISO timestamp of the email itself. Parsers can use it as fallback
+  // when the snippet doesn't include the transaction date.
+  parse(snippet: string, messageId: string, emailDate?: string): ParsedTransaction | null
 }

@@ -66,6 +66,56 @@ interface RequestBody {
 type SupabaseClient = any
 
 /**
+ * Refresh a Google OAuth access_token using the long-lived refresh_token.
+ * Updates profiles.gmail_token + gmail_token_expires_at on success.
+ * Returns new access_token or null on failure.
+ */
+async function refreshGmailToken(
+  supabase: SupabaseClient,
+  userId: string,
+  refreshToken: string,
+): Promise<string | null> {
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+  if (!clientId || !clientSecret) {
+    console.log('[refreshGmailToken] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET')
+    return null
+  }
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }).toString(),
+    })
+    if (!res.ok) {
+      console.log(`[refreshGmailToken] HTTP ${res.status}: ${await res.text()}`)
+      return null
+    }
+    const data = await res.json()
+    const newToken = data.access_token as string
+    const expiresIn = data.expires_in as number
+    if (!newToken) return null
+    await supabase
+      .from('profiles')
+      .update({
+        gmail_token: newToken,
+        gmail_token_expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
+      })
+      .eq('user_id', userId)
+    console.log(`[refreshGmailToken] OK for user ${userId}, expires in ${expiresIn}s`)
+    return newToken
+  } catch (e) {
+    console.log(`[refreshGmailToken] Exception: ${e}`)
+    return null
+  }
+}
+
+/**
  * SHA-256 hash of the snippet for cache lookup.
  */
 async function snippetHash(snippet: string): Promise<string> {
@@ -512,7 +562,7 @@ serve(async (req) => {
   // Fetch active bancos (filtered by user_id if provided)
   let bancosQuery = supabase
     .from('bancos')
-    .select('id, user_id, nombre, gmail_query, parser_type, profiles(gmail_token)')
+    .select('id, user_id, nombre, gmail_query, parser_type, profiles(gmail_token, gmail_refresh_token, gmail_token_expires_at)')
     .eq('activo', true)
 
   if (body.user_id) {
@@ -533,10 +583,21 @@ serve(async (req) => {
 
   for (const banco of bancos ?? []) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const gmailToken = (banco.profiles as any)?.gmail_token
+    const profile = (banco.profiles as any) ?? {}
+    let gmailToken: string | undefined = profile.gmail_token
+    const refreshToken: string | undefined = profile.gmail_refresh_token
     if (!gmailToken) {
       console.log(`No gmail_token for ${banco.nombre}, skipping`)
       continue
+    }
+
+    // Proactive refresh: if token expires in < 5 min, refresh now
+    if (profile.gmail_token_expires_at && refreshToken) {
+      const expiresAt = new Date(profile.gmail_token_expires_at).getTime()
+      if (expiresAt - Date.now() < 5 * 60 * 1000) {
+        const fresh = await refreshGmailToken(supabase, banco.user_id, refreshToken)
+        if (fresh) gmailToken = fresh
+      }
     }
 
     const parser = PARSERS[banco.parser_type] ?? PARSERS.generic
@@ -544,11 +605,11 @@ serve(async (req) => {
 
     const gmailQuery = `${banco.gmail_query} after:${gmailFrom} before:${gmailTo}`
 
-    // Paginated Gmail search
+    // Paginated Gmail search (with auto-refresh retry on 401)
     const allMessageIds: string[] = []
     let pageToken: string | undefined = undefined
     let pageCount = 0
-    const MAX_PAGES = 20  // safety limit ~1000 messages per banco per run
+    const MAX_PAGES = 20
 
     do {
       const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages`)
@@ -557,9 +618,21 @@ serve(async (req) => {
       if (pageToken) url.searchParams.set('pageToken', pageToken)
 
       try {
-        const gmailRes = await fetch(url.toString(), {
+        let gmailRes = await fetch(url.toString(), {
           headers: { Authorization: `Bearer ${gmailToken}` },
         })
+
+        // On 401: try refresh + retry once
+        if (gmailRes.status === 401 && refreshToken) {
+          const fresh = await refreshGmailToken(supabase, banco.user_id, refreshToken)
+          if (fresh) {
+            gmailToken = fresh
+            gmailRes = await fetch(url.toString(), {
+              headers: { Authorization: `Bearer ${gmailToken}` },
+            })
+          }
+        }
+
         if (!gmailRes.ok) {
           errors.push(`Gmail ${banco.nombre} page ${pageCount}: ${gmailRes.status}`)
           break

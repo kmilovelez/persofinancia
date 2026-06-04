@@ -230,54 +230,27 @@ async function executeTool(
   }
 }
 
-const SYSTEM_PROMPT = `Eres PersoFinancIA, asistente financiero personal del usuario. Hablas español colombiano natural, claro y útil.
+const SYSTEM_PROMPT = `Asistente financiero personal en español colombiano. Hoy: ${new Date().toISOString().slice(0, 10)}.
 
-Tu trabajo: responder preguntas sobre las finanzas personales del usuario usando las herramientas disponibles. SIEMPRE usa las herramientas para obtener datos reales — nunca inventes números.
+REGLAS:
+- USA herramientas siempre. Nunca inventes.
+- Montos: $1.234.567 (sin M/K).
+- Sé conciso.
+- "este mes" = día 1 al hoy. "mes pasado" = mes anterior completo.
 
-Reglas:
-- Montos en COP completos con puntos como separadores de miles (ej. $1.234.567). NO uses M ni K (no escribas "$1,2M" sino "$1.200.000").
-- Hoy es ${new Date().toISOString().slice(0, 10)}
-- Si el usuario dice "este mes", "mes actual" → desde el día 1 del mes en curso hasta hoy
-- Si dice "el mes pasado" → todo el mes anterior
-- Sé conciso pero útil. Si das una cifra, da contexto (ej. "vs el promedio histórico de X")
-- Si no tienes datos para responder, dilo claramente. No inventes.
+HERRAMIENTAS:
+- query_movimientos: gastos/movs REALES ya ejecutados. Usa grupo='Fijo' para filtrar fijos pasados.
+- get_compromisos: deudas/créditos/tarjetas con saldo, cuota mensual, día de pago.
+- get_presupuestos: monto presupuestado por categoría vs lo gastado este mes.
+- get_categorias: gasto total por categoría en un rango.
+- get_top_gastos: top N gastos más grandes en un rango.
 
-CONCEPTOS CLAVE — son DIFERENTES:
-- "gasté" / "gastos reales" / "movimientos" = lo que ya pasó (consultar query_movimientos)
-- "gastos fijos a pagar" / "costos fijos del mes" / "qué debo pagar" / "compromisos del mes" = el TOTAL que TENGO que pagar (combinar get_compromisos + get_presupuestos)
+CRÍTICO: "gastos fijos del mes X" / "qué debo pagar" / "costos fijos a pagar" = lo que TIENE que pagar (NO lo ya gastado). Para esto:
+1. Llama get_compromisos (todas las cuotas mensuales)
+2. Llama get_presupuestos (las de grupo Fijo: Arriendo, Servicio Doméstico, Educación Hijo, Suscripciones/Tech, Pagos/Servicios)
+3. Suma ambos y desglosa cada ítem en la respuesta.
 
-GUÍA DE HERRAMIENTAS — qué usar según pregunta:
-- "¿cuánto gasté?", "movimientos de X" (PASADO/REAL) → query_movimientos
-- "¿qué debo pagar este mes?", "gastos fijos a pagar en junio", "costos fijos del mes", "obligaciones del mes" → **LLAMA AMBAS get_compromisos + get_presupuestos** y suma:
-    * Compromisos: TODOS los compromisos activos (deudas, créditos, tarjetas) con sus cuotas mensuales
-    * Presupuestos: categorías de grupo Fijo (Arriendo, Servicio Doméstico, Educación Hijo, Suscripciones/Tech, Pagos/Servicios)
-    * El TOTAL es la suma de las cuotas mensuales de compromisos + presupuestos fijos
-- "¿en qué gasto más?" → get_categorias (con fechas históricas)
-- "¿cuáles son mis deudas?", "saldo total deuda", "compromisos bancarios", "cuándo vence X" → get_compromisos
-- "¿voy bien con presupuesto?" → get_presupuestos
-- "top gastos" → get_top_gastos
-
-CONTEXTO DEL USUARIO (Juan Camilo):
-- Trabaja en CI Matec (nómina principal ~$15.8M/mes neto)
-- Tiene un negocio de café (Venta Café = ingresos, Costo Café = gastos)
-- Tiene 7 compromisos bancarios activos:
-  * SUFI Vehículo · $3.337.391/mes · día 18
-  * Banco Occidente · $2.138.720/mes · día 17
-  * RappiCard · $1.548.624/mes · día 10
-  * Finandina Libre Inv · $707.771/mes · día 15
-  * Lulo Bank · $538.107/mes · día 20
-  * Finandina TC (congelada) · $386.173/mes · día 23
-  * ADDI BNPL · $83.544/mes · día 5
-  * TOTAL DEUDA MENSUAL: $8.740.330
-- Otros gastos fijos mensuales (categorías Fijo):
-  * Arriendo (Estudio Inmobiliario) · ~$3.000.000
-  * Servicio Doméstico (Julieth + Symplifica) · ~$2.513.000
-  * Educación Hijo (KUMON + colegio Tomás + Nada Más Jugando piscina) · ~$700.000
-  * Suscripciones/Tech (Apple, Disney, Claude, Audible, etc.) · ~$680.000
-  * Pagos/Servicios (celulares + internet) · ~$400.000
-- Sus categorías están agrupadas en: Fijo, Variable, Negocio (café), Ingreso, Ahorro.
-
-REGLA FINAL: cuando el usuario pregunta "gastos fijos del mes X" SIN especificar "que ya gasté", siempre asume que pregunta por el TOTAL A PAGAR (compromisos + presupuestos fijos), no por lo que ya se ejecutó.`
+Si pregunta "cuánto gasté en X" (pasado), usa query_movimientos.`
 
 export async function POST(req: Request) {
   const supabase = await getSupabaseServerClient()
@@ -297,26 +270,52 @@ export async function POST(req: Request) {
     ...userMessages,
   ]
 
-  // Up to 4 iterations of tool calls
-  for (let i = 0; i < 4; i++) {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  // Helper: call Groq with retry on 429 (rate limit)
+  async function callGroq(): Promise<Response> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages,
+          tools: TOOLS,
+          tool_choice: 'auto',
+          temperature: 0.3,
+          max_tokens: 1500,
+        }),
+      })
+      if (r.status !== 429) return r
+      // Read retry-after header from body
+      const txt = await r.clone().text()
+      const m = txt.match(/try again in ([\d.]+)s/)
+      const wait = m ? Math.min(Math.ceil(Number(m[1]) * 1000), 10000) : 5000
+      await new Promise(res => setTimeout(res, wait))
+    }
+    // Final attempt without catching
+    return fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages,
-        tools: TOOLS,
-        tool_choice: 'auto',
-        temperature: 0.3,
-        max_tokens: 1500,
+        messages, tools: TOOLS, tool_choice: 'auto', temperature: 0.3, max_tokens: 1500,
       }),
     })
+  }
+
+  // Up to 4 iterations of tool calls
+  for (let i = 0; i < 4; i++) {
+    const res = await callGroq()
 
     if (!res.ok) {
       const errText = await res.text()
+      // Friendlier message for rate limit
+      if (res.status === 429) {
+        return NextResponse.json({ error: 'Estoy un poco saturado. Intenta de nuevo en ~10 segundos.' }, { status: 429 })
+      }
       return NextResponse.json({ error: `Groq error: ${errText}` }, { status: 502 })
     }
 

@@ -101,6 +101,58 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'create_movimiento',
+      description: 'Crea un nuevo movimiento manual (gasto o ingreso). SOLO llamar después de confirmación explícita del usuario.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fecha: { type: 'string', description: 'YYYY-MM-DD. Si el usuario dice "hoy", usa la fecha actual.' },
+          monto: { type: 'number', description: 'Monto en COP (positivo)' },
+          flujo: { type: 'string', enum: ['in','out'], description: 'in=ingreso, out=gasto' },
+          descripcion: { type: 'string', description: 'Descripción del movimiento (ej. "Pago Addi BNPL")' },
+          tipo: { type: 'string', description: 'Tipo: Pago, Compra, Transferencia, Ingreso, etc.' },
+          categoria: { type: 'string', description: 'Nombre exacto de la categoría del usuario (opcional)' },
+        },
+        required: ['fecha','monto','flujo','descripcion','tipo'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_compromiso',
+      description: 'Actualiza un compromiso bancario existente (saldo, cuotas pagadas, estado). SOLO llamar tras confirmación.',
+      parameters: {
+        type: 'object',
+        properties: {
+          entidad: { type: 'string', description: 'Nombre de la entidad (ej. "SUFI", "Lulo Bank")' },
+          saldo_actual: { type: 'number', description: 'Nuevo saldo total. Opcional.' },
+          cuotas_pagadas: { type: 'number', description: 'Nuevo número de cuotas pagadas. Opcional.' },
+          estado: { type: 'string', enum: ['al_dia','mora','congelada','liquidado'], description: 'Nuevo estado. Opcional.' },
+          cuota_mensual: { type: 'number', description: 'Nueva cuota mensual. Opcional.' },
+        },
+        required: ['entidad'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_regla',
+      description: 'Crea una nueva regla de categorización automática y la aplica a movimientos sin categoría. SOLO tras confirmación.',
+      parameters: {
+        type: 'object',
+        properties: {
+          patron: { type: 'string', description: 'Texto a buscar en descripción (ILIKE %patron%)' },
+          categoria: { type: 'string', description: 'Nombre exacto de categoría a asignar' },
+        },
+        required: ['patron','categoria'],
+      },
+    },
+  },
 ] as const
 
 async function executeTool(
@@ -209,6 +261,82 @@ async function executeTool(
         .limit(limit)
       return data ?? []
     }
+    case 'create_movimiento': {
+      const id = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const payload = {
+        id,
+        user_id: userId,
+        fecha: args.fecha,
+        hora: '00:00',
+        tipo: String(args.tipo ?? 'Pago'),
+        flujo: args.flujo === 'in' ? 'in' : 'out',
+        monto: Math.abs(Number(args.monto) || 0),
+        descripcion: String(args.descripcion ?? '').toUpperCase(),
+        categoria: args.categoria ? String(args.categoria) : null,
+        categoria_manual: !!args.categoria,
+        origen: 'manual',
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('movimientos') as any).insert(payload)
+      if (error) return { ok: false, error: error.message }
+      return { ok: true, id, mensaje: `Movimiento creado: ${payload.descripcion} · $${payload.monto.toLocaleString('es-CO')} · ${payload.fecha}` }
+    }
+    case 'update_compromiso': {
+      // Find by entidad (fuzzy)
+      const { data: matches } = await supabase
+        .from('compromisos')
+        .select('id, entidad, producto')
+        .eq('user_id', userId)
+        .ilike('entidad', `%${args.entidad}%`)
+      const matchList = (matches ?? []) as Array<{ id: string; entidad: string; producto: string }>
+      if (matchList.length === 0) return { ok: false, error: `No encontré compromiso con entidad "${args.entidad}"` }
+      if (matchList.length > 1) return { ok: false, error: `Hay varios compromisos que matchean "${args.entidad}": ${matchList.map(m => m.entidad + ' ' + m.producto).join(', ')}. Sé más específico.` }
+      const target = matchList[0]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const update: Record<string, any> = { updated_at: new Date().toISOString() }
+      if (args.saldo_actual != null) update.saldo_actual = Number(args.saldo_actual)
+      if (args.cuotas_pagadas != null) update.cuotas_pagadas = Number(args.cuotas_pagadas)
+      if (args.estado) update.estado = args.estado
+      if (args.cuota_mensual != null) update.cuota_mensual = Number(args.cuota_mensual)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('compromisos') as any).update(update).eq('id', target.id).eq('user_id', userId)
+      if (error) return { ok: false, error: error.message }
+      return { ok: true, mensaje: `Compromiso ${target.entidad} ${target.producto} actualizado.` }
+    }
+    case 'create_regla': {
+      // Resolve categoria_id
+      const { data: catRaw } = await supabase
+        .from('categorias')
+        .select('id, nombre')
+        .eq('user_id', userId)
+        .eq('nombre', args.categoria)
+        .maybeSingle()
+      const cat = catRaw as { id: string; nombre: string } | null
+      if (!cat) return { ok: false, error: `Categoría "${args.categoria}" no existe. Categorías válidas: usa get_categorias.` }
+      // Insert rule
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rule, error: rErr } = await (supabase.from('reglas_categoria') as any).insert({
+        user_id: userId,
+        categoria_id: cat.id,
+        campo: 'descripcion',
+        operador: 'contains',
+        valor: String(args.patron).toUpperCase(),
+        prioridad: 25,
+        activa: true,
+        origen: 'manual',
+      }).select('id').single()
+      if (rErr || !rule) return { ok: false, error: rErr?.message ?? 'No se pudo crear regla' }
+      // Apply to existing NULL movs
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: applied } = await (supabase.from('movimientos') as any)
+        .update({ categoria: cat.nombre, regla_aplicada: rule.id })
+        .eq('user_id', userId)
+        .is('categoria', null)
+        .ilike('descripcion', `%${args.patron}%`)
+        .select('id')
+      const appliedCount = (applied as Array<unknown>)?.length ?? 0
+      return { ok: true, mensaje: `Regla creada: "${args.patron}" → ${cat.nombre}. Se aplicó a ${appliedCount} movimiento${appliedCount === 1 ? '' : 's'} existente${appliedCount === 1 ? '' : 's'}.` }
+    }
     case 'get_compromisos': {
       const { data } = await supabase
         .from('compromisos')
@@ -238,12 +366,24 @@ REGLAS:
 - Sé conciso.
 - "este mes" = día 1 al hoy. "mes pasado" = mes anterior completo.
 
-HERRAMIENTAS:
+HERRAMIENTAS DE LECTURA:
 - query_movimientos: gastos/movs REALES ya ejecutados. Usa grupo='Fijo' para filtrar fijos pasados.
 - get_compromisos: deudas/créditos/tarjetas con saldo, cuota mensual, día de pago.
 - get_presupuestos: monto presupuestado por categoría vs lo gastado este mes.
 - get_categorias: gasto total por categoría en un rango.
 - get_top_gastos: top N gastos más grandes en un rango.
+
+HERRAMIENTAS DE ESCRITURA (mutables — SIEMPRE PEDIR CONFIRMACIÓN PRIMERO):
+- create_movimiento: crea un movimiento manual (pago, ingreso, transferencia)
+- update_compromiso: actualiza saldo/cuotas/estado de un compromiso bancario
+- create_regla: crea regla de categorización automática
+
+PROTOCOLO PARA MUTACIONES:
+1. Cuando el usuario pida crear/modificar algo, NO llames la tool inmediatamente.
+2. Resume claramente qué vas a hacer: "Voy a crear: descripción=X, monto=$Y, fecha=Z, categoría=W. ¿Confirmas?"
+3. Espera respuesta del usuario.
+4. Si confirma ("sí", "confirma", "dale", "ok"), llama la tool.
+5. Si dice algo diferente, ajusta y vuelve a confirmar.
 
 CRÍTICO: "gastos fijos del mes X" / "qué debo pagar" / "costos fijos a pagar" = lo que TIENE que pagar (NO lo ya gastado). Para esto:
 1. Llama get_compromisos (todas las cuotas mensuales)

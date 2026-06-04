@@ -17,6 +17,11 @@ const CONFIG_LINKS = [
     desc: 'Últimas lecturas de Gmail (cron + manual)',
   },
   {
+    href: '/config/compromisos',
+    label: 'Compromisos bancarios',
+    desc: 'Créditos, tarjetas y préstamos',
+  },
+  {
     href: '/config/categorias',
     label: 'Categorias',
     desc: 'Crea y edita tus categorias',
